@@ -11,13 +11,14 @@ interface Tile {
   wordId: string
   type: 'word' | 'pic'
   label: string
+  sub?: string
 }
 
 function buildTiles(roundWords: WordItem[]): Tile[] {
   const tiles: Tile[] = []
   roundWords.forEach((w) => {
     tiles.push({ key: `${w.id}-word`, wordId: w.id, type: 'word', label: w.en })
-    tiles.push({ key: `${w.id}-pic`, wordId: w.id, type: 'pic', label: w.emoji })
+    tiles.push({ key: `${w.id}-pic`, wordId: w.id, type: 'pic', label: w.emoji, sub: w.cn })
   })
   return shuffle(tiles)
 }
@@ -109,7 +110,7 @@ export default function EliminationGame({ words, onAnswer, onFinish }: GameProps
               key={tile.key}
               onClick={() => pickTile(tile)}
               disabled={isGone}
-              className={`aspect-square rounded-2xl flex items-center justify-center font-bold shadow-md border-4 transition-all
+              className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-0.5 font-bold shadow-md border-4 transition-all
                 ${isGone ? 'opacity-0 pointer-events-none' : 'bg-white'}
                 ${isSelected ? 'border-amber-400 scale-95' : 'border-white'}
                 ${isWrong ? 'border-rose-400 animate-shake' : ''}
@@ -117,6 +118,9 @@ export default function EliminationGame({ words, onAnswer, onFinish }: GameProps
               `}
             >
               {tile.label}
+              {tile.type === 'pic' && (
+                <span className="text-xs font-normal text-slate-400">{tile.sub}</span>
+              )}
             </button>
           )
         })}

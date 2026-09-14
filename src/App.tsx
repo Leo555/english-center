@@ -102,6 +102,7 @@ function GameRoute() {
       gameType={gt}
       words={unit.words}
       onAnswer={(wordId, correct) => recordAnswer(wordId, unit.levelId, unit.id, correct)}
+      onExit={() => navigate(`/unit/${unitId}`)}
       onFinish={(stars, correct, total) => {
         const allUnits = getAllUnits()
         const idx = allUnits.findIndex((u) => u.id === unit.id)

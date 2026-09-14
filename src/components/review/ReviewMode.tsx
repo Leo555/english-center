@@ -87,6 +87,7 @@ export default function ReviewMode({ onBack }: { onBack: () => void }) {
       gameType={session.gameType}
       words={session.words}
       onAnswer={handleAnswer}
+      onExit={() => setSession(null)}
       onFinish={(stars, correct, total) => setResult({ stars, correct, total })}
     />
   )

@@ -103,7 +103,10 @@ export default function PictureChoiceGame({ words, onAnswer, onFinish }: GamePro
               `}
             >
               {q.direction === 'word2pic' ? (
-                <span className="text-5xl">{opt.emoji}</span>
+                <span className="flex flex-col items-center gap-1">
+                  <span className="text-5xl">{opt.emoji}</span>
+                  <span className="text-xs font-normal text-slate-400">{opt.cn}</span>
+                </span>
               ) : (
                 <span className="text-xl">{opt.en}</span>
               )}

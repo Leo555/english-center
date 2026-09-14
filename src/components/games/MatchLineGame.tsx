@@ -107,12 +107,13 @@ export default function MatchLineGame({ words, onAnswer, onFinish }: GameProps) 
                 key={item.id}
                 disabled={isMatched}
                 onClick={() => pickRight(item)}
-                className={`rounded-xl px-4 py-3 text-3xl border-4 shadow flex items-center justify-center transition-all
+                className={`rounded-xl px-4 py-3 border-4 shadow flex flex-col items-center justify-center gap-0.5 transition-all
                   ${isMatched ? 'bg-emerald-50 border-emerald-300 opacity-60' : 'bg-white border-white'}
                   ${isWrong ? 'border-rose-400 animate-shake' : ''}
                 `}
               >
-                {item.emoji}
+                <span className="text-3xl">{item.emoji}</span>
+                <span className="text-xs font-normal text-slate-400">{item.cn}</span>
               </button>
             )
           })}
