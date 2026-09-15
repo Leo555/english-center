@@ -40,32 +40,28 @@ export default function PictureChoiceGame({ words, onAnswer, onFinish }: GamePro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qIndex])
 
+  // 选错直接进入下一题（不允许原地重试），只有全程零失误才能拿到 3 星
   function handlePick(opt: WordItem) {
     if (feedback) return
     setSelected(opt.id)
     const isCorrect = opt.id === q.word.id
     onAnswer(q.word.id, isCorrect)
-    if (isCorrect) {
-      setFeedback('correct')
-      setCorrectCount((c) => c + 1)
-      setTimeout(() => {
-        if (qIndex + 1 >= questions.length) {
-          const finalMistakes = mistakes
-          onFinish(calcStars(questions.length, finalMistakes), correctCount + 1, questions.length)
-        } else {
-          setQIndex((i) => i + 1)
-          setSelected(null)
-          setFeedback(null)
-        }
-      }, 550)
-    } else {
-      setFeedback('wrong')
-      setMistakes((m) => m + 1)
-      setTimeout(() => {
+    setFeedback(isCorrect ? 'correct' : 'wrong')
+
+    const nextMistakes = isCorrect ? mistakes : mistakes + 1
+    const nextCorrectCount = isCorrect ? correctCount + 1 : correctCount
+    if (!isCorrect) setMistakes(nextMistakes)
+    else setCorrectCount(nextCorrectCount)
+
+    setTimeout(() => {
+      if (qIndex + 1 >= questions.length) {
+        onFinish(calcStars(questions.length, nextMistakes), nextCorrectCount, questions.length)
+      } else {
+        setQIndex((i) => i + 1)
         setSelected(null)
         setFeedback(null)
-      }, 500)
-    }
+      }
+    }, isCorrect ? 550 : 700)
   }
 
   if (!q) return null
@@ -83,7 +79,10 @@ export default function PictureChoiceGame({ words, onAnswer, onFinish }: GamePro
             <div className="text-slate-400 text-sm mt-1">{q.word.ipa} 🔊 再听一次</div>
           </button>
         ) : (
-          <div className="text-8xl animate-pop">{q.word.emoji}</div>
+          <div className="flex flex-col items-center gap-1 animate-pop">
+            <div className="text-8xl">{q.word.emoji}</div>
+            <div className="text-slate-400 text-sm font-bold">{q.word.cn}</div>
+          </div>
         )}
       </div>
 

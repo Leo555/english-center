@@ -23,15 +23,15 @@ export default function Home({ onEnterMap, onEnterReview }: { onEnterMap: () => 
         <button
           onClick={() => setSwitcherOpen(true)}
           aria-label="账号设置"
-          className="flex items-center justify-center w-10 h-10 bg-white/80 hover:bg-white rounded-full shadow transition-colors text-xl shrink-0"
+          className="flex items-center justify-center w-10 h-10 text-2xl leading-none opacity-70 hover:opacity-100 transition-opacity shrink-0"
         >
-          ⚙️
+          <span className="leading-none">⚙️</span>
         </button>
       </div>
       <div className="text-4xl font-extrabold text-orange-500 drop-shadow-sm">🚀 Power Up 小英雄</div>
       <Mascot
         emoji={currentProfile?.avatar ?? '🦁'}
-        message={`嗨${currentProfile ? `，${currentProfile.nickname}` : ''}！准备好闯关学英语了吗？`}
+        message={`hi${currentProfile ? `，${currentProfile.nickname}` : ''}！准备好闯关学英语了吗？`}
         size="lg"
       />
 
