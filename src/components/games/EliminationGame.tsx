@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { WordItem } from '../../types'
 import { calcStars, chunk, shuffle } from '../../utils/gameEngine'
 import { speak } from '../../utils/speech'
+import { playCorrect, playWrong } from '../../utils/sfx'
 import type { GameProps } from './PictureChoiceGame'
 
 const ROUND_SIZE = 6 // 每轮 6 个词 = 12 张卡片
@@ -66,6 +67,7 @@ export default function EliminationGame({ words, onAnswer, onFinish }: GameProps
     onAnswer(tile.wordId, isPair)
 
     if (isPair) {
+      playCorrect()
       const nextElim = new Set(eliminated)
       nextElim.add(first.key)
       nextElim.add(tile.key)
@@ -78,6 +80,7 @@ export default function EliminationGame({ words, onAnswer, onFinish }: GameProps
         setTimeout(() => goNextRoundOrFinish(mistakes, newCorrect), 500)
       }
     } else {
+      playWrong()
       setWrongKeys(new Set([first.key, tile.key]))
       setCombo(0)
       const newMistakes = mistakes + 1

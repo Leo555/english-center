@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { WordItem } from '../../types'
 import { buildChoices, shuffle } from '../../utils/gameEngine'
 import { speak } from '../../utils/speech'
+import { playCorrect, playWrong } from '../../utils/sfx'
 
 interface Props {
   allWords: WordItem[] // 用于生成干扰项的词库（通常是本关全部单词）
@@ -48,6 +49,7 @@ export default function ReinforcementRound({ allWords, queueWords, onAnswer, onD
     const isCorrect = opt.id === current.id
     onAnswer(current.id, isCorrect)
     setFeedback(isCorrect ? 'correct' : 'wrong')
+    isCorrect ? playCorrect() : playWrong()
 
     setTimeout(
       () => {
@@ -104,7 +106,7 @@ export default function ReinforcementRound({ allWords, queueWords, onAnswer, onD
               className={`rounded-2xl py-6 px-3 text-center font-bold text-2xl shadow-md border-4 transition-all
                 ${showCorrect ? 'border-emerald-400 bg-emerald-50 animate-pop' : ''}
                 ${showWrong ? 'border-rose-400 bg-rose-50 animate-shake' : ''}
-                ${!feedback ? 'border-white bg-white hover:border-amber-300' : ''}
+                ${!feedback ? 'border-white bg-white active:border-amber-300' : ''}
               `}
             >
               {direction === 'word2pic' ? (

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { WordItem } from '../../types'
 import { calcStars, chunk, shuffle } from '../../utils/gameEngine'
 import { speak } from '../../utils/speech'
+import { playCorrect, playWrong } from '../../utils/sfx'
 import type { GameProps } from './PictureChoiceGame'
 
 const ROUND_SIZE = 6
@@ -49,6 +50,7 @@ export default function MatchLineGame({ words, onAnswer, onFinish }: GameProps) 
     const isCorrect = item.id === selectedLeft
     onAnswer(selectedLeft, isCorrect)
     if (isCorrect) {
+      playCorrect()
       const nextMatched = new Set(matched)
       nextMatched.add(item.id)
       setMatched(nextMatched)
@@ -59,6 +61,7 @@ export default function MatchLineGame({ words, onAnswer, onFinish }: GameProps) 
         setTimeout(() => goNextRoundOrFinish(mistakes, newCorrect), 500)
       }
     } else {
+      playWrong()
       setWrongPair({ left: selectedLeft, right: item.id })
       const newMistakes = mistakes + 1
       setMistakes(newMistakes)

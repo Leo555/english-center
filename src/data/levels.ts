@@ -127,7 +127,7 @@ const L1_U8 = unit('L1', 8, '更多家人', 'More Family', [
   w('woman', '女人', '/ˈwʊmən/', '👩‍🦳', 'The woman is kind.', '那个女人很和善。'),
   w('people', '人们', '/ˈpiːpl/', '👥', 'I see many people.', '我看见很多人。'),
   w('home', '家', '/hoʊm/', '🏠', 'I go home at five.', '我五点回家。'),
-  w('house', '房子', '/haʊs/', '🏡', 'My house is big.', '我家很大。'),
+  w('house', '房子', '/haʊs/', '🏘️', 'My house is big.', '我家很大。'),
   w('love', '爱', '/lʌv/', '❤️', 'I love my family.', '我爱我的家人。'),
 ], '🏠')
 const L1_U9 = unit('L1', 9, '家庭情感与外貌', 'Feelings & Looks', [
@@ -449,7 +449,7 @@ const L2_U5 = unit('L2', 5, '职业角色', 'Jobs', [
   w('singer', '歌手', '/ˈsɪŋər/', '🧑‍🎤', 'She is a great singer.', '她是一位很棒的歌手。'),
   w('dancer', '舞蹈家', '/ˈdænsər/', '💃', 'The dancer moves gracefully.', '舞蹈家动作很优美。'),
   w('artist', '艺术家', '/ˈɑːrtɪst/', '🧑‍🎨', 'The artist paints pictures.', '艺术家画画。'),
-  w('driver', '司机', '/ˈdraɪvər/', '🧑‍✈️', 'The driver drives the bus.', '司机开公交车。'),
+  w('driver', '司机', '/ˈdraɪvər/', '🚌', 'The driver drives the bus.', '司机开公交车。'),
   w('vet', '兽医', '/vet/', '🐾', 'The vet takes care of my dog.', '兽医照顾我的狗。'),
 ], '👩‍⚕️')
 const L2_U6 = unit('L2', 6, '房间与家具', 'Rooms & Furniture', [
@@ -461,7 +461,7 @@ const L2_U6 = unit('L2', 6, '房间与家具', 'Rooms & Furniture', [
   w('chair', '椅子', '/tʃer/', '🪑', 'The chair is comfortable.', '这把椅子很舒服。'),
   w('lamp', '台灯', '/læmp/', '💡', 'Turn on the lamp.', '打开台灯。'),
   w('TV', '电视', '/ˌtiːˈviː/', '📺', 'I watch TV after dinner.', '晚饭后我看电视。'),
-  w('sofa', '沙发', '/ˈsoʊfə/', '🛋️', 'I sit on the sofa.', '我坐在沙发上。'),
+  w('sofa', '沙发', '/ˈsoʊfə/', '💺', 'I sit on the sofa.', '我坐在沙发上。'),
   w('wardrobe', '衣柜', '/ˈwɔːrdroʊb/', '🚪', 'My clothes are in the wardrobe.', '我的衣服在衣柜里。'),
   w('mirror', '镜子', '/ˈmɪrər/', '🪞', 'Look in the mirror.', '照照镜子。'),
   w('fridge', '冰箱', '/frɪdʒ/', '🧊', 'The milk is in the fridge.', '牛奶在冰箱里。'),
@@ -470,7 +470,7 @@ const L2_U7 = unit('L2', 7, '走进大自然', 'Nature', [
   w('tree', '树', '/triː/', '🌳', 'The tree is tall.', '这棵树很高。'),
   w('flower', '花', '/ˈflaʊər/', '🌸', 'The flower smells nice.', '这朵花很香。'),
   w('mountain', '山', '/ˈmaʊntn/', '⛰️', 'We climb the mountain.', '我们爬山。'),
-  w('river', '河流', '/ˈrɪvər/', '🌊', 'Fish swim in the river.', '鱼在河里游。'),
+  w('river', '河流', '/ˈrɪvər/', '💧', 'Fish swim in the river.', '鱼在河里游。'),
   w('moon', '月亮', '/muːn/', '🌙', 'The moon is bright.', '月亮很亮。'),
   w('star', '星星', '/stɑːr/', '⭐', 'I see many stars.', '我看见很多星星。'),
   w('sky', '天空', '/skaɪ/', '🌌', 'The sky is blue.', '天空是蓝色的。'),
@@ -483,7 +483,7 @@ const L2_U7 = unit('L2', 7, '走进大自然', 'Nature', [
 const L2_U8 = unit('L2', 8, '节日与庆祝', 'Festivals', [
   w('birthday', '生日', '/ˈbɜːrθdeɪ/', '🎂', 'Happy birthday to you!', '祝你生日快乐！'),
   w('Christmas', '圣诞节', '/ˈkrɪsməs/', '🎄', 'We like Christmas.', '我们喜欢圣诞节。'),
-  w('New Year', '新年', '/nuː jɪr/', '🎆', 'Happy New Year!', '新年快乐！'),
+  w('New Year', '新年', '/nuː jɪr/', '🎊', 'Happy New Year!', '新年快乐！'),
   w('party', '聚会', '/ˈpɑːrti/', '🎉', 'We have a party today.', '我们今天有聚会。'),
   w('gift', '礼物', '/ɡɪft/', '🎁', 'I got a nice gift.', '我收到一份漂亮的礼物。'),
   w('balloon', '气球', '/bəˈluːn/', '🎈', 'There are many balloons.', '有很多气球。'),
@@ -613,7 +613,7 @@ const L2_U17 = unit('L2', 17, '购物乐园', 'Shopping', [
   w('price', '价格', '/praɪs/', '💲', 'What is the price?', '价格是多少？'),
   w('money', '钱', '/ˈmʌni/', '💰', 'I have some money.', '我有一些钱。'),
   w('pay', '付钱', '/peɪ/', '💳', 'I pay for the toy.', '我为玩具付钱。'),
-  w('cheap', '便宜的', '/tʃiːp/', '🪙', 'This book is cheap.', '这本书很便宜。'),
+  w('cheap', '便宜的', '/tʃiːp/', '💸', 'This book is cheap.', '这本书很便宜。'),
   w('expensive', '昂贵的', '/ɪkˈspensɪv/', '💎', 'The watch is expensive.', '这块手表很贵。'),
   w('coin', '硬币', '/kɔɪn/', '🪙', 'I have a coin.', '我有一枚硬币。'),
   w('wallet', '钱包', '/ˈwɑːlɪt/', '👛', 'My wallet is red.', '我的钱包是红色的。'),
@@ -641,8 +641,8 @@ const L2_U19 = unit('L2', 19, '昆虫世界', 'Minibeasts', [
   w('worm', '虫子', '/wɜːrm/', '🪱', 'The worm lives in the soil.', '虫子生活在土里。'),
   w('ladybird', '瓢虫', '/ˈleɪdibɜːrd/', '🐞', 'The ladybird has red wings.', '瓢虫有红色的翅膀。'),
   w('caterpillar', '毛毛虫', '/ˈkætərpɪlər/', '🐛', 'The caterpillar eats leaves.', '毛毛虫吃树叶。'),
-  w('dragonfly', '蜻蜓', '/ˈdræɡənflaɪ/', '🦟', 'The dragonfly flies over the lake.', '蜻蜓在湖面上飞。'),
-  w('grasshopper', '蚱蜢', '/ˈɡræshɑːpər/', '🦗', 'The grasshopper can jump far.', '蚱蜢能跳得很远。'),
+  w('dragonfly', '蜻蜓', '/ˈdræɡənflaɪ/', '🚁', 'The dragonfly flies over the lake.', '蜻蜓在湖面上飞。'),
+  w('grasshopper', '蚱蜢', '/ˈɡræshɑːpər/', '🍃', 'The grasshopper can jump far.', '蚱蜢能跳得很远。'),
   w('beetle', '甲虫', '/ˈbiːtl/', '🪲', 'The beetle has a hard shell.', '甲虫有坚硬的壳。'),
   w('cricket', '蟋蟀', '/ˈkrɪkɪt/', '🦗', 'I hear a cricket singing.', '我听到蟋蟀在鸣叫。'),
   w('moth', '飞蛾', '/mɔːθ/', '🦋', 'The moth flies at night.', '飞蛾在夜里飞。'),
@@ -661,7 +661,7 @@ const L2_U20 = unit('L2', 20, '海洋生物', 'Sea Creatures', [
   w('coral', '珊瑚', '/ˈkɔːrəl/', '🪸', 'The coral is colorful.', '珊瑚色彩斑斓。'),
   w('seal', '海豹', '/siːl/', '🦭', 'The seal claps its fins.', '海豹拍打它的鳍。'),
   w('penguin', '企鹅', '/ˈpeŋɡwɪn/', '🐧', 'The penguin cannot fly.', '企鹅不会飞。'),
-  w('walrus', '海象', '/ˈwɔːlrəs/', '🦭', 'The walrus has long tusks.', '海象有长长的獠牙。'),
+  w('walrus', '海象', '/ˈwɔːlrəs/', '🧊', 'The walrus has long tusks.', '海象有长长的獠牙。'),
 ], '🐠')
 const L2_U21 = unit('L2', 21, '户外探险', 'Camping & Outdoors', [
   w('tent', '帐篷', '/tent/', '⛺', 'We sleep in a tent.', '我们睡在帐篷里。'),
@@ -673,7 +673,7 @@ const L2_U21 = unit('L2', 21, '户外探险', 'Camping & Outdoors', [
   w('map', '地图', '/mæp/', '🗺️', 'Check the map first.', '先看看地图。'),
   w('binoculars', '望远镜', '/bɪˈnɑːkjələrz/', '🔭', 'I see birds with binoculars.', '我用望远镜看鸟。'),
   w('rope', '绳子', '/roʊp/', '🪢', 'Tie the rope tightly.', '把绳子系紧。'),
-  w('flashlight', '手电', '/ˈflæʃlaɪt/', '🔦', 'The flashlight is bright.', '手电很亮。'),
+  w('flashlight', '手电', '/ˈflæʃlaɪt/', '💡', 'The flashlight is bright.', '手电很亮。'),
   w('hiking', '徒步旅行', '/ˈhaɪkɪŋ/', '🥾', 'We go hiking in the hills.', '我们去山里徒步。'),
   w('picnic', '野餐', '/ˈpɪknɪk/', '🧺', 'Let\'s have a picnic.', '我们去野餐吧。'),
 ], '🏕️')

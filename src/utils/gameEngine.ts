@@ -13,9 +13,23 @@ export function pickRandom<T>(arr: T[], n: number): T[] {
   return shuffle(arr).slice(0, n)
 }
 
+// 容易被小朋友混淆的"近义/同义"词组：即使图形不同，意思也几乎无法区分
+// （如 goodbye/bye 都是"再见"），因此禁止它们互相作为对方的干扰项出现在同一题里
+const CONFUSABLE_GROUPS: string[][] = [
+  ['hello', 'hi'],
+  ['goodbye', 'bye'],
+  ['home', 'house'],
+  ['round', 'circle'],
+  ['torch', 'flashlight'],
+]
+
+function isConfusable(a: string, b: string): boolean {
+  return CONFUSABLE_GROUPS.some((g) => g.includes(a) && g.includes(b))
+}
+
 // 为某个正确答案生成 N 选 1 的干扰项（用于图形选择题）
 export function buildChoices(pool: WordItem[], correct: WordItem, count = 4): WordItem[] {
-  const distractorsPool = pool.filter((w) => w.id !== correct.id)
+  const distractorsPool = pool.filter((w) => w.id !== correct.id && !isConfusable(w.en, correct.en))
   const distractors = pickRandom(distractorsPool, Math.min(count - 1, distractorsPool.length))
   return shuffle([correct, ...distractors])
 }

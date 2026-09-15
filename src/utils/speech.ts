@@ -42,6 +42,8 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 const QUALITY_HINTS = [
   'natural', 'neural', 'premium', 'enhanced', 'plus', 'siri',
   'google', 'samantha', 'ava', 'zoe', 'allison', 'nova', 'online',
+  // Edge/Windows 神经网络语音常见命名（如 "Microsoft AriaOnline (Natural)"）
+  'aria', 'jenny', 'guy', 'davis', 'sara', 'christopher', 'wavenet', 'neural2',
 ]
 const AVOID_HINTS = ['compact', 'espeak', 'novelty']
 
@@ -65,25 +67,57 @@ function pickBestVoice(voices: SpeechSynthesisVoice[], lang: string): SpeechSynt
 }
 
 const selectedVoiceCache: Partial<Record<string, SpeechSynthesisVoice | undefined>> = {}
+let voicesPrimed = false
 
-export async function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US') {
+// 提前把常用语言的最佳语音选好并缓存，避免真正朗读时才异步等待——
+// 因为"等待"会打断用户手势的调用栈，导致部分安卓浏览器判定为非用户触发而静默拦截
+async function primeVoices() {
+  if (voicesPrimed) return
+  voicesPrimed = true
+  const voices = await loadVoices()
+  ;(['en-US', 'zh-CN'] as const).forEach((lang) => {
+    selectedVoiceCache[lang] = pickBestVoice(voices, lang)
+  })
+}
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  primeVoices()
+}
+
+// vivo/oppo/华为等厂商内置浏览器多基于旧版 WebView 内核，对语音合成执行了
+// 与自动播放同等严格的"必须在用户手势的同一调用栈内同步触发"策略：
+// 中间只要有 await/setTimeout 之类的异步间隔，就会被判定为非用户触发而静默无声。
+// 桌面 Chrome 则相反，存在 cancel() 后立刻 speak() 偶发不出声的已知 bug，
+// 需要错开一个宏任务才稳定——因此这里按平台区分处理方式。
+const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)
+
+export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US') {
   try {
     if (!('speechSynthesis' in window)) return
-    window.speechSynthesis.cancel()
-
-    if (!(lang in selectedVoiceCache)) {
-      const voices = await loadVoices()
-      selectedVoiceCache[lang] = pickBestVoice(voices, lang)
-    }
+    const synth = window.speechSynthesis
+    // 部分安卓浏览器在页面切后台或空闲一段时间后会让 speechSynthesis 卡在
+    // paused 状态，导致后续 speak 静默无声，先尝试恢复
+    if (synth.paused) synth.resume()
+    synth.cancel()
 
     const u = new SpeechSynthesisUtterance(text)
     u.lang = lang
-    u.rate = 0.85
+    // 单词 vs 句子分别调速：单词稍快更干脆，句子放慢一点便于孩子跟读听清每个音节
+    u.rate = text.trim().includes(' ') ? 0.8 : 0.92
     u.pitch = 1.0 // 使用自然音调，避免偏高显得尖锐/机械
+
     const voice = selectedVoiceCache[lang]
     if (voice) u.voice = voice
+    else if (!voicesPrimed) primeVoices() // 兜底：正常情况下页面加载时已完成选音
 
-    window.speechSynthesis.speak(u)
+    if (isAndroid) {
+      // 安卓平台不需要 setTimeout 规避 Chrome 的竞态 bug，
+      // 且必须同步调用才能保留用户手势上下文，否则会静默无声
+      synth.speak(u)
+    } else {
+      // Chrome 桌面端：用一个 0ms 的宏任务错开 cancel/speak，规避已知竞态问题
+      setTimeout(() => synth.speak(u), 0)
+    }
   } catch {
     // 静默失败：部分环境/浏览器不支持语音合成
   }

@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import Button from '../common/Button'
 import Mascot from '../common/Mascot'
 import StarRating from '../common/StarRating'
+import { playWin } from '../../utils/sfx'
 
 interface Props {
   stars: number
@@ -16,6 +18,13 @@ const MESSAGES = ['别灰心，再试一次一定行！💪', '不错哦，继�
 
 export default function GameResult({ stars, correct, total, unlockedNext, onRetry, onBack, backLabel = '返回' }: Props) {
   const msgIndex = Math.max(0, Math.min(2, stars - 1))
+
+  // 结算页出现时播放一次庆祝音效，星级越高越热烈
+  useEffect(() => {
+    playWin(stars)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div className="flex flex-col items-center gap-5 text-center py-6 animate-pop">
       <Mascot emoji={stars >= 3 ? '🥳' : stars >= 2 ? '🦊' : '🐣'} message={MESSAGES[msgIndex] ?? MESSAGES[0]} size="lg" />

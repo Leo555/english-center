@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { WordItem } from '../../types'
 import { buildChoices, calcStars, shuffle } from '../../utils/gameEngine'
 import { speak } from '../../utils/speech'
+import { playCorrect, playWrong } from '../../utils/sfx'
 import ProgressBar from '../common/ProgressBar'
 
 interface Question {
@@ -47,6 +48,7 @@ export default function PictureChoiceGame({ words, onAnswer, onFinish }: GamePro
     const isCorrect = opt.id === q.word.id
     onAnswer(q.word.id, isCorrect)
     setFeedback(isCorrect ? 'correct' : 'wrong')
+    isCorrect ? playCorrect() : playWrong()
 
     const nextMistakes = isCorrect ? mistakes : mistakes + 1
     const nextCorrectCount = isCorrect ? correctCount + 1 : correctCount
@@ -98,7 +100,7 @@ export default function PictureChoiceGame({ words, onAnswer, onFinish }: GamePro
               className={`rounded-2xl py-6 px-3 text-center font-bold text-2xl shadow-md border-4 transition-all
                 ${showCorrect ? 'border-emerald-400 bg-emerald-50 animate-pop' : ''}
                 ${showWrong ? 'border-rose-400 bg-rose-50 animate-shake' : ''}
-                ${!feedback ? 'border-white bg-white hover:border-amber-300' : ''}
+                ${!feedback ? 'border-white bg-white active:border-amber-300' : ''}
               `}
             >
               {q.direction === 'word2pic' ? (
