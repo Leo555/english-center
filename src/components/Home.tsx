@@ -1,22 +1,39 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useProgress } from '../store/useProgress'
+import { useUsers } from '../store/useUsers'
 import { getAllUnits } from '../data/levels'
 import { isDue } from '../utils/srs'
 import Button from './common/Button'
 import Mascot from './common/Mascot'
 import ProgressBar from './common/ProgressBar'
+import ProfileSwitcher from './common/ProfileSwitcher'
 
 export default function Home({ onEnterMap, onEnterReview }: { onEnterMap: () => void; onEnterReview: () => void }) {
   const wrongBook = useProgress((s) => s.wrongBook)
   const totalStars = useProgress((s) => s.getTotalStars())
+  const currentProfile = useUsers((s) => s.getCurrentProfile())
+  const [switcherOpen, setSwitcherOpen] = useState(false)
 
   const maxStars = useMemo(() => getAllUnits().filter((u) => u.words.length > 0).length * 9, [])
   const dueCount = useMemo(() => Object.values(wrongBook).filter((it) => isDue(it)).length, [wrongBook])
 
   return (
     <div className="flex flex-col items-center gap-6 text-center pt-6">
+      <div className="w-full flex justify-end -mb-2">
+        <button
+          onClick={() => setSwitcherOpen(true)}
+          aria-label="账号设置"
+          className="flex items-center justify-center w-10 h-10 bg-white/80 hover:bg-white rounded-full shadow transition-colors text-xl shrink-0"
+        >
+          ⚙️
+        </button>
+      </div>
       <div className="text-4xl font-extrabold text-orange-500 drop-shadow-sm">🚀 Power Up 小英雄</div>
-      <Mascot emoji="🦁" message="嗨！准备好闯关学英语了吗？" size="lg" />
+      <Mascot
+        emoji={currentProfile?.avatar ?? '🦁'}
+        message={`嗨${currentProfile ? `，${currentProfile.nickname}` : ''}！准备好闯关学英语了吗？`}
+        size="lg"
+      />
 
       <div className="w-full max-w-sm bg-white/70 rounded-2xl p-4 shadow">
         <div className="flex justify-between text-sm font-bold text-slate-500 mb-1">
@@ -43,6 +60,8 @@ export default function Home({ onEnterMap, onEnterReview }: { onEnterMap: () => 
       <p className="text-xs text-slate-400 max-w-xs mt-2">
         内容分级对标《Power Up》教材 1-6 级，覆盖剑桥 YLE Starters / Movers / Flyers 至 KET / PET。
       </p>
+
+      <ProfileSwitcher open={switcherOpen} onClose={() => setSwitcherOpen(false)} />
     </div>
   )
 }

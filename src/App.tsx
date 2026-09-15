@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate, useNavigate, useParams } from 'rea
 import type { GameType } from './types'
 import { findLevel, findUnit, getAllUnits } from './data/levels'
 import { useProgress } from './store/useProgress'
+import { useUsers } from './store/useUsers'
 import Home from './components/Home'
 import LevelMap from './components/LevelMap'
 import VocabList from './components/VocabList'
@@ -11,6 +12,7 @@ import LearnMode from './components/learn/LearnMode'
 import GamePlayer from './components/games/GamePlayer'
 import GameResult from './components/games/GameResult'
 import ReviewMode from './components/review/ReviewMode'
+import CreateProfile from './components/onboarding/CreateProfile'
 
 interface GameResultState {
   stars: number
@@ -122,6 +124,19 @@ function ReviewRoute() {
 }
 
 export default function App() {
+  const currentUserId = useUsers((s) => s.currentUserId)
+
+  // 首次进入或所有账号都被删除时，先引导用户创建/输入昵称，再进入闯关地图
+  if (!currentUserId) {
+    return (
+      <div className="min-h-screen w-full px-4 py-6 pb-16">
+        <div className="max-w-lg mx-auto">
+          <CreateProfile mode="onboarding" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <HashRouter>
       <div className="min-h-screen w-full px-4 py-6 pb-16">

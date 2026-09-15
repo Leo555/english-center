@@ -1,8 +1,31 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import type { GameType, UnitProgress, WrongItem } from '../types'
 import { getAllUnits, findUnit } from '../data/levels'
 import { advanceOnCorrect, createWrongItem, isDue, reduceOnWrong } from '../utils/srs'
+import { getCurrentUserId } from './userSession'
+
+// 按"当前登录用户"分别存取进度数据，实现多用户本地数据隔离。
+// name 由 persist 中间件传入（即下方配置的 'powerup-kids-progress'），
+// 实际写入 localStorage 的 key 会拼接当前用户 id，如 powerup-kids-progress:u_xxx。
+// 尚未选择/创建用户时（currentUserId 为空）不读写，避免污染全局存储。
+const perUserStorage: StateStorage = {
+  getItem: (name) => {
+    const uid = getCurrentUserId()
+    if (!uid) return null
+    return localStorage.getItem(`${name}:${uid}`)
+  },
+  setItem: (name, value) => {
+    const uid = getCurrentUserId()
+    if (!uid) return
+    localStorage.setItem(`${name}:${uid}`, value)
+  },
+  removeItem: (name) => {
+    const uid = getCurrentUserId()
+    if (!uid) return
+    localStorage.removeItem(`${name}:${uid}`)
+  },
+}
 
 interface ProgressState {
   unlockedUnits: Record<string, boolean>
@@ -151,6 +174,6 @@ export const useProgress = create<ProgressState>()(
 
       getDueReviewCount: () => Object.values(get().wrongBook).filter((it) => isDue(it)).length,
     }),
-    { name: 'powerup-kids-progress' },
+    { name: 'powerup-kids-progress', storage: createJSONStorage(() => perUserStorage) },
   ),
 )
