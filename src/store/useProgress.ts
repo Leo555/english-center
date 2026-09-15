@@ -83,7 +83,12 @@ function recomputeUnlocks(
   const levelIds = Object.keys(byLevel)
   for (let i = 0; i < levelIds.length - 1; i++) {
     const curUnits = byLevel[levelIds[i]]
-    const allClear = curUnits.every((u) => (u.words.length === 0 ? true : cleared(u.id)))
+    // 纯占位级别（如 L3-L6 暂未填充词库，全部单元 words.length === 0）不能被当作"已通关"，
+    // 否则 every() 对空数组条件恒为 true，会在玩家还没真正完成前置级别时，
+    // 就连锁解锁后续所有占位级别（如做完 L1 第一关就直接解锁了 L4/L5/L6）。
+    // 必须要求该级别至少有 1 个真实可玩单元，且全部可玩单元都已通关，才算真正通关。
+    const hasPlayableUnit = curUnits.some((u) => u.words.length > 0)
+    const allClear = hasPlayableUnit && curUnits.every((u) => (u.words.length === 0 ? true : cleared(u.id)))
     if (allClear) {
       const nextLevelFirst = byLevel[levelIds[i + 1]][0]
       if (nextLevelFirst) next[nextLevelFirst.id] = true

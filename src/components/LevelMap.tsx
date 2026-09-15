@@ -1,17 +1,18 @@
 import { LEVELS } from '../data/levels'
 import { useProgress } from '../store/useProgress'
 
-// 每 3 个单元一个主题色带，让整版地图按主题分区，颜色不再单一
+// 每 3 个单元一个主题色带，让整版地图按主题分区；柔和的单色系渐变，
+// 兼顾可读性与整体的轻柔配色调性，不追求过强的明暗对比
 const THEME_PALETTE = [
   'from-sky-300 to-blue-400',
-  'from-violet-300 to-indigo-400',
-  'from-rose-300 to-pink-400',
-  'from-emerald-300 to-green-400',
-  'from-amber-300 to-yellow-400',
-  'from-orange-300 to-red-400',
-  'from-fuchsia-300 to-purple-400',
-  'from-cyan-300 to-teal-400',
-  'from-lime-300 to-emerald-400',
+  'from-indigo-300 to-violet-400',
+  'from-fuchsia-300 to-pink-400',
+  'from-rose-300 to-red-400',
+  'from-orange-300 to-amber-400',
+  'from-lime-300 to-green-400',
+  'from-emerald-300 to-teal-400',
+  'from-cyan-300 to-sky-400',
+  'from-purple-300 to-fuchsia-400',
 ]
 
 function themeGradient(unitIndex: number) {
@@ -93,7 +94,7 @@ export default function LevelMap({
       >
         📖 查看本级词汇表
       </button>
-      <div className="bg-white/70 rounded-2xl px-4 py-3 shadow-sm mx-2 flex flex-col gap-1.5">
+      <div className="bg-white/75 rounded-2xl px-4 py-3 shadow-sm mx-2 flex flex-col gap-1.5">
         <div className="flex justify-between items-center text-xs font-bold text-slate-500">
           <span>🏁 闯关进度</span>
           <span>

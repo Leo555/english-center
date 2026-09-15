@@ -7,19 +7,28 @@ import Button from './common/Button'
 import Mascot from './common/Mascot'
 import ProgressBar from './common/ProgressBar'
 import ProfileSwitcher from './common/ProfileSwitcher'
+import SoundDiagnostics from './common/SoundDiagnostics'
 
 export default function Home({ onEnterMap, onEnterReview }: { onEnterMap: () => void; onEnterReview: () => void }) {
   const wrongBook = useProgress((s) => s.wrongBook)
   const totalStars = useProgress((s) => s.getTotalStars())
   const currentProfile = useUsers((s) => s.getCurrentProfile())
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  const [diagOpen, setDiagOpen] = useState(false)
 
   const maxStars = useMemo(() => getAllUnits().filter((u) => u.words.length > 0).length * 9, [])
   const dueCount = useMemo(() => Object.values(wrongBook).filter((it) => isDue(it)).length, [wrongBook])
 
   return (
     <div className="flex flex-col items-center gap-6 text-center pt-6">
-      <div className="w-full flex justify-end -mb-2">
+      <div className="w-full flex justify-end gap-1 -mb-2">
+        <button
+          onClick={() => setDiagOpen(true)}
+          aria-label="声音诊断"
+          className="flex items-center justify-center w-10 h-10 text-xl leading-none opacity-70 hover:opacity-100 transition-opacity shrink-0"
+        >
+          <span className="leading-none">🔊</span>
+        </button>
         <button
           onClick={() => setSwitcherOpen(true)}
           aria-label="账号设置"
@@ -65,6 +74,7 @@ export default function Home({ onEnterMap, onEnterReview }: { onEnterMap: () => 
       </p>
 
       <ProfileSwitcher open={switcherOpen} onClose={() => setSwitcherOpen(false)} />
+      <SoundDiagnostics open={diagOpen} onClose={() => setDiagOpen(false)} />
     </div>
   )
 }
