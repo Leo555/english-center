@@ -28,7 +28,10 @@ export default function Home({ onEnterMap, onEnterReview }: { onEnterMap: () => 
           <span className="leading-none">⚙️</span>
         </button>
       </div>
-      <div className="text-4xl font-extrabold text-orange-500 drop-shadow-sm">🚀 Power Up 小英雄</div>
+      <div className="flex items-center gap-2">
+        <img src="/logo.svg" alt="Power Up 小英雄" className="w-14 h-14 drop-shadow-sm" />
+        <div className="text-4xl font-extrabold text-orange-500 drop-shadow-sm">Power Up 小英雄</div>
+      </div>
       <Mascot
         emoji={currentProfile?.avatar ?? '🦁'}
         message={`hi${currentProfile ? `，${currentProfile.nickname}` : ''}！准备好闯关学英语了吗？`}
