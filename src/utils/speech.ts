@@ -39,9 +39,12 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 // 按音质关键词打分：优先选择听感更自然、更接近真人的语音，
 // 避开明显机械音的引擎（如老式 espeak / compact 语音）
+// 注意：'google'/'online' 故意不在列表里——这类通常是需要联网请求 Google
+// 服务器合成的"云端语音"，在国内大量无 GMS 的安卓机（vivo/OPPO/华为等）上
+// 网络不可达，调用会完全静默失败（不报错也不出声），千万不能给它们加分。
 const QUALITY_HINTS = [
   'natural', 'neural', 'premium', 'enhanced', 'plus', 'siri',
-  'google', 'samantha', 'ava', 'zoe', 'allison', 'nova', 'online',
+  'samantha', 'ava', 'zoe', 'allison', 'nova',
   // Edge/Windows 神经网络语音常见命名（如 "Microsoft AriaOnline (Natural)"）
   'aria', 'jenny', 'guy', 'davis', 'sara', 'christopher', 'wavenet', 'neural2',
 ]
@@ -55,9 +58,13 @@ function pickBestVoice(voices: SpeechSynthesisVoice[], lang: string): SpeechSynt
   const scored = candidates.map((v) => {
     const name = v.name.toLowerCase()
     let score = 0
+    // 是否需要联网才能合成的语音（Android 上 name 常带 "network"，且非 localService）。
+    // 这类语音一旦无法访问对应服务器就会完全静默失败，权重必须远高于其他所有因素，
+    // 确保能正常发声的本地语音永远优先于"听起来更好但可能用不了"的云端语音。
+    if (v.localService) score += 10
+    else score -= 3
     QUALITY_HINTS.forEach((h) => { if (name.includes(h)) score += 3 })
     AVOID_HINTS.forEach((h) => { if (name.includes(h)) score -= 5 })
-    if (v.localService) score += 1 // 本地语音延迟更低、更稳定
     if (v.lang.toLowerCase() === lang.toLowerCase()) score += 1 // 完全匹配地区（如 en-US）优先
     if (v.default) score += 0.5
     return { v, score }
@@ -100,23 +107,34 @@ export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US') {
     if (synth.paused) synth.resume()
     synth.cancel()
 
-    const u = new SpeechSynthesisUtterance(text)
-    u.lang = lang
-    // 单词 vs 句子分别调速：单词稍快更干脆，句子放慢一点便于孩子跟读听清每个音节
-    u.rate = text.trim().includes(' ') ? 0.8 : 0.92
-    u.pitch = 1.0 // 使用自然音调，避免偏高显得尖锐/机械
-
     const voice = selectedVoiceCache[lang]
-    if (voice) u.voice = voice
-    else if (!voicesPrimed) primeVoices() // 兜底：正常情况下页面加载时已完成选音
+    if (!voice && !voicesPrimed) primeVoices() // 兜底：正常情况下页面加载时已完成选音
+
+    let fallbackTried = false
+    const buildUtterance = (useVoice: boolean) => {
+      const u = new SpeechSynthesisUtterance(text)
+      u.lang = lang
+      // 单词 vs 句子分别调速：单词稍快更干脆，句子放慢一点便于孩子跟读听清每个音节
+      u.rate = text.trim().includes(' ') ? 0.8 : 0.92
+      u.pitch = 1.0 // 使用自然音调，避免偏高显得尖锐/机械
+      if (useVoice && voice) u.voice = voice
+      // 万一选中的 voice 是需要联网的云端语音、在当前设备/网络下不可用，
+      // 会触发 error 事件而不是静默成功——此时立即改用系统默认语音（不指定 voice）重试一次
+      u.onerror = () => {
+        if (fallbackTried || !useVoice || !voice) return
+        fallbackTried = true
+        synth.speak(buildUtterance(false))
+      }
+      return u
+    }
 
     if (isAndroid) {
       // 安卓平台不需要 setTimeout 规避 Chrome 的竞态 bug，
       // 且必须同步调用才能保留用户手势上下文，否则会静默无声
-      synth.speak(u)
+      synth.speak(buildUtterance(true))
     } else {
       // Chrome 桌面端：用一个 0ms 的宏任务错开 cancel/speak，规避已知竞态问题
-      setTimeout(() => synth.speak(u), 0)
+      setTimeout(() => synth.speak(buildUtterance(true)), 0)
     }
   } catch {
     // 静默失败：部分环境/浏览器不支持语音合成
