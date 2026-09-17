@@ -1,19 +1,64 @@
-// 使用浏览器内置 Web Speech API 朗读单词/句子，无需联网/无需音频素材
+// 朗读单词/句子。
 //
-// 说明：此前尝试过"按音质关键词打分挑选最佳语音""预热引擎"等方案都没能解决
-// vivo 浏览器无声音的问题。最终通过声音诊断面板在真机上做了对照实验才找到
-// 真正原因：诊断面板里"只设置 utterance.lang、完全不设置 utterance.voice"的
-// 测试用例能正常出声；而这里一旦显式赋值 `u.voice = 某个 getVoices() 里的对象`，
-// 合成就会静默失败——说明 vivo 浏览器把 JS 层拿到的 voice 对象重新绑定回原生
-// TTS 引擎时存在兼容性问题。因此干脆不指定 voice，只设置 lang，交给浏览器/
-// 系统自己按语言选择默认语音，兼容性反而更好。
+// 背景：真机排查发现部分安卓浏览器（尤其某些 vivo 浏览器版本）压根不存在
+// window.speechSynthesis 这个 API（不是语音列表为空、不是被吞、不是选错语音，
+// 是 API 本身没有），代码层面无法修复浏览器缺失的能力。
+// 因此改为"本地预生成音频优先"方案：L1/L2 词库的单词与例句已用 macOS `say`
+// 预先合成为 AAC 音频文件（见 scripts/generate-audio.ts），朗读时优先查
+// AUDIO_MANIFEST 用 <audio> 播放，在所有设备上体验一致，不依赖浏览器 TTS
+// 能力。只有文本不在 manifest 里（比如尚未预生成音频的 L3~L6）时，才回退到
+// 浏览器自带的 speechSynthesis（不设置 utterance.voice，只设置 lang——
+// 此前对照实验证实显式赋值 voice 会导致部分安卓浏览器静默失败）。
+
+import { AUDIO_MANIFEST } from '../data/audioManifest'
 
 export function canSpeak(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
+// 极简事件总线：当文本既没有预生成音频、又没有浏览器 TTS 能力时触发，
+// 用事件而不是直接依赖 React，避免 utils 反向依赖组件层。
+type Unsupported = () => void
+const unsupportedListeners = new Set<Unsupported>()
+export function onSpeechUnsupported(listener: Unsupported): () => void {
+  unsupportedListeners.add(listener)
+  return () => unsupportedListeners.delete(listener)
+}
+
+let currentAudio: HTMLAudioElement | null = null
+
+function playLocalAudio(url: string): boolean {
+  try {
+    if (currentAudio) {
+      currentAudio.pause()
+      currentAudio.currentTime = 0
+    }
+    const audio = new Audio(url)
+    currentAudio = audio
+    // play() 返回的 Promise 在部分浏览器上可能被拒绝（如被自动播放策略拦截），
+    // 这里静默捕获，不影响主流程；用户点击触发的调用一般不会被拦截。
+    audio.play().catch(() => {})
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US') {
-  if (!canSpeak()) return
+  const trimmed = text.trim()
+  if (!trimmed) return
+
+  // 1. 优先使用本地预生成音频（目前覆盖 L1/L2 词库的单词与例句）
+  if (lang === 'en-US') {
+    const url = AUDIO_MANIFEST[trimmed.toLowerCase()]
+    if (url && playLocalAudio(url)) return
+  }
+
+  // 2. 回退到浏览器内置 Web Speech API
+  if (!canSpeak()) {
+    unsupportedListeners.forEach((fn) => fn())
+    return
+  }
   try {
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)

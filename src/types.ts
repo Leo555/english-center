@@ -54,3 +54,21 @@ export interface WrongItem {
   correctStreak: number
   updatedAt: number
 }
+
+// 视频学习专区
+// source 为 null 表示暂未配置视频源（占位状态，前端展示"敬请期待"）；
+// 请仅填入拥有合法授权/版权的视频（如自制视频、已获授权的官方 embed 链接），
+// 不要下载/托管未授权的第三方版权视频文件。
+export type VideoSource = 'youtube' | 'local' | null
+
+export interface VideoData {
+  id: string // 全局唯一，如 L1-V1
+  levelId: string // 所属级别 L1 ~ L6
+  title: string // 中文标题
+  titleEn: string // 英文标题
+  desc: string // 一句话简介
+  emoji: string // 封面占位图标
+  source: VideoSource
+  youtubeId?: string // source === 'youtube' 时必填：YouTube 视频 ID（不含完整 URL）
+  localSrc?: string // source === 'local' 时必填：public/ 下的本地视频路径，如 /videos/l1/greetings.mp4
+}

@@ -9,7 +9,15 @@ import ProgressBar from './common/ProgressBar'
 import ProfileSwitcher from './common/ProfileSwitcher'
 import SoundDiagnostics from './common/SoundDiagnostics'
 
-export default function Home({ onEnterMap, onEnterReview }: { onEnterMap: () => void; onEnterReview: () => void }) {
+export default function Home({
+  onEnterMap,
+  onEnterReview,
+  onEnterVideos,
+}: {
+  onEnterMap: () => void
+  onEnterReview: () => void
+  onEnterVideos: () => void
+}) {
   const wrongBook = useProgress((s) => s.wrongBook)
   const totalStars = useProgress((s) => s.getTotalStars())
   const currentProfile = useUsers((s) => s.getCurrentProfile())
@@ -66,6 +74,9 @@ export default function Home({ onEnterMap, onEnterReview }: { onEnterMap: () => 
               {dueCount}
             </span>
           )}
+        </Button>
+        <Button variant="ghost" onClick={onEnterVideos}>
+          🎬 视频学习专区
         </Button>
       </div>
 

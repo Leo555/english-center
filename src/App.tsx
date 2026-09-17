@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import type { GameType } from './types'
 import { findLevel, findUnit, getAllUnits } from './data/levels'
+import { findVideo } from './data/videos'
 import { useProgress } from './store/useProgress'
 import { useUsers } from './store/useUsers'
 import Home from './components/Home'
@@ -13,6 +14,9 @@ import GamePlayer from './components/games/GamePlayer'
 import GameResult from './components/games/GameResult'
 import ReviewMode from './components/review/ReviewMode'
 import CreateProfile from './components/onboarding/CreateProfile'
+import VideoZone from './components/videos/VideoZone'
+import VideoPlayer from './components/videos/VideoPlayer'
+import SpeechFallbackBanner from './components/common/SpeechFallbackBanner'
 
 interface GameResultState {
   stars: number
@@ -23,7 +27,13 @@ interface GameResultState {
 
 function HomeRoute() {
   const navigate = useNavigate()
-  return <Home onEnterMap={() => navigate('/map')} onEnterReview={() => navigate('/review')} />
+  return (
+    <Home
+      onEnterMap={() => navigate('/map')}
+      onEnterReview={() => navigate('/review')}
+      onEnterVideos={() => navigate('/videos')}
+    />
+  )
 }
 
 function LevelMapRoute() {
@@ -123,6 +133,18 @@ function ReviewRoute() {
   return <ReviewMode onBack={() => navigate('/')} />
 }
 
+function VideoZoneRoute() {
+  const navigate = useNavigate()
+  return <VideoZone onBack={() => navigate('/')} onOpenVideo={(videoId) => navigate(`/videos/${videoId}`)} />
+}
+
+function VideoPlayerRoute() {
+  const navigate = useNavigate()
+  const { videoId = '' } = useParams()
+  if (!findVideo(videoId)) return <Navigate to="/videos" replace />
+  return <VideoPlayer videoId={videoId} onBack={() => navigate('/videos')} />
+}
+
 export default function App() {
   const currentUserId = useUsers((s) => s.currentUserId)
 
@@ -140,6 +162,7 @@ export default function App() {
   return (
     <HashRouter>
       <div className="min-h-screen w-full px-4 py-6 pb-16">
+        <SpeechFallbackBanner />
         <div className="max-w-lg mx-auto">
           <Routes>
             <Route path="/" element={<HomeRoute />} />
@@ -150,6 +173,8 @@ export default function App() {
             <Route path="/unit/:unitId/learn" element={<LearnRoute />} />
             <Route path="/unit/:unitId/game/:gameType" element={<GameRoute />} />
             <Route path="/review" element={<ReviewRoute />} />
+            <Route path="/videos" element={<VideoZoneRoute />} />
+            <Route path="/videos/:videoId" element={<VideoPlayerRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
