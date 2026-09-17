@@ -49,11 +49,15 @@ interface ProgressState {
 
 const FIRST_UNIT_ID = 'L1-U1'
 
-function recomputeUnlocks(
-  unlocked: Record<string, boolean>,
-  progress: Record<string, UnitProgress>,
-): Record<string, boolean> {
-  const next: Record<string, boolean> = { ...unlocked, [FIRST_UNIT_ID]: true }
+// 注意：unlockedUnits 必须每次都从 unitProgress 完整重新推导，不能在已有解锁状态基础上做累加。
+// 历史教训：早期 L3-L6 是空占位单元（words.length === 0）时，跨级解锁条件的 every() 对空数组恒为 true，
+// 曾经导致"做完 L1 第一关就连锁解锁 L4/L5/L6"的 bug。虽然该 bug 已通过 hasPlayableUnit 判断修复，
+// 但如果这里继续 `{...unlocked, ...}` 累加式合并旧状态，那些已经被"污染"过、错误写入 localStorage
+// 的解锁记录会永久保留、无法被后续修复自动纠正（因为从不会被"收回"）。
+// 因此改为纯函数式：只依据当前真实的 unitProgress 从零推导一遍完整的解锁表，
+// 这样即使之前的本地存储里有历史遗留的错误解锁，也会在下一次调用时被自动纠正。
+function recomputeUnlocks(progress: Record<string, UnitProgress>): Record<string, boolean> {
+  const next: Record<string, boolean> = { [FIRST_UNIT_ID]: true }
   const allUnits = getAllUnits()
 
   const cleared = (unitId: string) => {
@@ -111,7 +115,7 @@ export const useProgress = create<ProgressState>()(
             ...s.unitProgress,
             [unitId]: { learned: true, stars: s.unitProgress[unitId]?.stars ?? {} },
           }
-          return { unitProgress, unlockedUnits: recomputeUnlocks(s.unlockedUnits, unitProgress) }
+          return { unitProgress, unlockedUnits: recomputeUnlocks(unitProgress) }
         })
       },
 
@@ -123,7 +127,7 @@ export const useProgress = create<ProgressState>()(
             ...s.unitProgress,
             [unitId]: { learned: true, stars: { ...prev.stars, [gameType]: bestStars } },
           }
-          return { unitProgress, unlockedUnits: recomputeUnlocks(s.unlockedUnits, unitProgress) }
+          return { unitProgress, unlockedUnits: recomputeUnlocks(unitProgress) }
         })
       },
 
@@ -179,6 +183,16 @@ export const useProgress = create<ProgressState>()(
 
       getDueReviewCount: () => Object.values(get().wrongBook).filter((it) => isDue(it)).length,
     }),
-    { name: 'powerup-kids-progress', storage: createJSONStorage(() => perUserStorage) },
+    {
+      name: 'powerup-kids-progress',
+      storage: createJSONStorage(() => perUserStorage),
+      // 应用启动、从 localStorage 恢复数据后立即按当前真实进度重新推导一次解锁表，
+      // 修复历史遗留（如旧版 bug 期间被错误写入）的解锁状态，无需用户手动重置进度。
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.unlockedUnits = recomputeUnlocks(state.unitProgress)
+        }
+      },
+    },
   ),
 )
