@@ -14,6 +14,7 @@ import GamePlayer from './components/games/GamePlayer'
 import GameResult from './components/games/GameResult'
 import ReviewMode from './components/review/ReviewMode'
 import CreateProfile from './components/onboarding/CreateProfile'
+import CloudRestore from './components/onboarding/CloudRestore'
 import VideoZone from './components/videos/VideoZone'
 import VideoPlayer from './components/videos/VideoPlayer'
 import SpeechFallbackBanner from './components/common/SpeechFallbackBanner'
@@ -145,6 +146,25 @@ function VideoPlayerRoute() {
   return <VideoPlayer videoId={videoId} onBack={() => navigate('/videos')} />
 }
 
+function OnboardingRoute() {
+  const [mode, setMode] = useState<'create' | 'restore'>('create')
+
+  if (mode === 'restore') {
+    return <CloudRestore onDone={() => {}} onCancel={() => setMode('create')} />
+  }
+
+  return (
+    <>
+      <CreateProfile mode="onboarding" />
+      <div className="text-center mt-4">
+        <button onClick={() => setMode('restore')} className="text-sm text-slate-400 underline">
+          ☁️ 已绑定过手机号？点此找回学习进度
+        </button>
+      </div>
+    </>
+  )
+}
+
 export default function App() {
   const currentUserId = useUsers((s) => s.currentUserId)
 
@@ -153,7 +173,7 @@ export default function App() {
     return (
       <div className="min-h-screen w-full px-4 py-6 pb-16">
         <div className="max-w-lg mx-auto">
-          <CreateProfile mode="onboarding" />
+          <OnboardingRoute />
         </div>
       </div>
     )

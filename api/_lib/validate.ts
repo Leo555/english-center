@@ -1,0 +1,21 @@
+// 手机号仅作格式校验、用作同步分组标识，没有接入短信服务做真实性验证；
+// 因此云同步的安全边界等价于"知道手机号即可读写该手机号下的存档"，
+// 类似家庭内部共享账号场景，不适合、也不会用于存放除学习进度以外的敏感数据。
+
+export function normalizePhone(input: unknown): string | null {
+  if (typeof input !== 'string') return null
+  const digits = input.replace(/\D/g, '')
+  if (digits.length < 6 || digits.length > 20) return null
+  return digits
+}
+
+export function normalizeNickname(input: unknown): string | null {
+  if (typeof input !== 'string') return null
+  const trimmed = input.trim().slice(0, 12)
+  if (!trimmed) return null
+  return trimmed
+}
+
+export function syncKey(phone: string): string {
+  return `powerup:sync:${phone}`
+}

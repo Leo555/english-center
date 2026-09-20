@@ -4,16 +4,22 @@ import {
   getCurrentUserId,
   hasStoredProgress,
   migrateLegacyProgressIfNeeded,
+  PROGRESS_STORAGE_PREFIX,
   removeUserProgressStorage,
+  seedUserStorage,
   setCurrentUserId,
+  VIDEO_PROGRESS_STORAGE_PREFIX,
 } from './userSession'
 import { useProgress } from './useProgress'
+import { useVideoProgress } from './useVideoProgress'
+import type { CloudProfileRecord } from '../lib/cloudSync'
 
 export interface UserProfile {
   id: string
   nickname: string
   avatar: string // emoji 头像
   createdAt: number
+  phone?: string // 绑定的同步手机号；未绑定则该资料只存本地，不联网
 }
 
 interface UsersState {
@@ -25,6 +31,9 @@ interface UsersState {
   switchUser: (id: string) => void
   renameProfile: (id: string, nickname: string) => void
   removeProfile: (id: string) => void
+  bindPhone: (id: string, phone: string) => void
+  unbindPhone: (id: string) => void
+  restoreFromCloud: (phone: string, nickname: string, record: CloudProfileRecord) => string
 
   // selectors
   getCurrentProfile: () => UserProfile | null
@@ -107,6 +116,51 @@ export const useUsers = create<UsersState>()(
           return { profiles, currentUserId }
         })
         reloadProgressForUser(nextCurrentUserId)
+      },
+
+      // 给某个本地资料绑定同步手机号：之后进度/视频进度变化会自动 debounce 推送到该手机号下（以昵称为字段）。
+      // 立即触发一次推送，让这个手机号下马上能查到这份资料（换设备时才不会显示"暂无云端存档"）。
+      bindPhone: (id, phone) => {
+        const clean = phone.replace(/\D/g, '')
+        if (clean.length < 6 || clean.length > 20) return
+        set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? { ...p, phone: clean } : p)) }))
+        if (get().currentUserId === id) {
+          void import('../lib/autoSync').then((m) => m.syncNow())
+        }
+      },
+
+      // 解绑后仅停止后续自动同步，不会删除云端已存的存档
+      unbindPhone: (id) => {
+        set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? { ...p, phone: undefined } : p)) }))
+      },
+
+      // 换设备后用手机号找回进度：若本机已存在同手机号+同昵称的资料则直接复用，否则新建一份本地资料，
+      // 并把云端存档写入对应的 localStorage 位置，再触发 rehydrate 让 useProgress/useVideoProgress 生效。
+      restoreFromCloud: (phone, nickname, record) => {
+        const existing = get().profiles.find((p) => p.phone === phone && p.nickname === nickname)
+        const id = existing?.id ?? genId()
+
+        seedUserStorage(
+          PROGRESS_STORAGE_PREFIX,
+          id,
+          record.progress ?? { unlockedUnits: {}, unitProgress: {}, wrongBook: {} },
+        )
+        seedUserStorage(VIDEO_PROGRESS_STORAGE_PREFIX, id, record.video ?? { watchedVideos: {} })
+
+        setCurrentUserId(id)
+        set((s) => ({
+          profiles: existing
+            ? s.profiles.map((p) => (p.id === id ? { ...p, avatar: record.avatar || p.avatar } : p))
+            : [
+                ...s.profiles,
+                { id, nickname, avatar: record.avatar || AVATAR_OPTIONS[0], createdAt: Date.now(), phone },
+              ],
+          currentUserId: id,
+        }))
+
+        void useProgress.persist.rehydrate()
+        void useVideoProgress.persist.rehydrate()
+        return id
       },
 
       getCurrentProfile: () => {

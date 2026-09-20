@@ -11,14 +11,18 @@ interface Props {
 
 export default function CreateProfile({ mode = 'onboarding', onDone, onCancel }: Props) {
   const createProfile = useUsers((s) => s.createProfile)
+  const bindPhone = useUsers((s) => s.bindPhone)
   const [nickname, setNickname] = useState('')
   const [avatar, setAvatar] = useState(AVATAR_OPTIONS[0])
+  const [phone, setPhone] = useState('')
 
   const canSubmit = nickname.trim().length > 0
 
   const handleSubmit = () => {
     if (!canSubmit) return
     const id = createProfile(nickname, avatar)
+    const cleanPhone = phone.replace(/\D/g, '')
+    if (cleanPhone.length >= 6) bindPhone(id, cleanPhone)
     onDone?.(id)
   }
 
@@ -64,6 +68,18 @@ export default function CreateProfile({ mode = 'onboarding', onDone, onCancel }:
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="text-left">
+          <label className="block text-sm font-bold text-slate-500 mb-1">手机号（选填，用于云端同步）</label>
+          <input
+            inputMode="numeric"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            maxLength={20}
+            placeholder="填写后可在其他设备找回进度"
+            className="w-full rounded-xl border-2 border-slate-200 px-4 py-2.5 text-base font-bold text-slate-700 outline-none focus:border-amber-400 transition-colors"
+          />
         </div>
       </div>
 

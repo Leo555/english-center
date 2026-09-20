@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useUsers } from '../../store/useUsers'
 import ConfirmDialog from '../common/ConfirmDialog'
+import BindPhoneDialog from '../common/BindPhoneDialog'
 import CreateProfile from '../onboarding/CreateProfile'
+import CloudRestore from '../onboarding/CloudRestore'
 
 interface Props {
   open: boolean
@@ -13,8 +15,12 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
   const currentUserId = useUsers((s) => s.currentUserId)
   const switchUser = useUsers((s) => s.switchUser)
   const removeProfile = useUsers((s) => s.removeProfile)
+  const bindPhone = useUsers((s) => s.bindPhone)
+  const unbindPhone = useUsers((s) => s.unbindPhone)
   const [adding, setAdding] = useState(false)
+  const [restoring, setRestoring] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [bindingId, setBindingId] = useState<string | null>(null)
 
   if (!open) return null
 
@@ -29,6 +35,22 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
               onClose()
             }}
             onCancel={() => setAdding(false)}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (restoring) {
+    return (
+      <div className="fixed inset-0 z-50 bg-gradient-to-b from-amber-50 to-sky-50 overflow-y-auto">
+        <div className="max-w-lg mx-auto px-4 py-6">
+          <CloudRestore
+            onDone={() => {
+              setRestoring(false)
+              onClose()
+            }}
+            onCancel={() => setRestoring(false)}
           />
         </div>
       </div>
@@ -66,6 +88,22 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
                 <span className="font-bold text-slate-700">{p.nickname}</span>
                 {p.id === currentUserId && <span className="text-xs text-amber-500 font-bold ml-1">当前</span>}
               </button>
+              {p.phone ? (
+                <button
+                  className="text-xs text-sky-400 font-bold shrink-0 px-1"
+                  onClick={() => unbindPhone(p.id)}
+                  title="点击解除手机号同步"
+                >
+                  ☁️ 已同步
+                </button>
+              ) : (
+                <button
+                  className="text-xs text-slate-300 hover:text-sky-400 font-bold shrink-0 px-1"
+                  onClick={() => setBindingId(p.id)}
+                >
+                  绑定同步
+                </button>
+              )}
               {profiles.length > 1 && (
                 <button
                   className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
@@ -85,6 +123,12 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
         >
           ➕ 添加新用户
         </button>
+        <button
+          className="w-full mt-2 rounded-2xl border-2 border-dashed border-slate-200 py-3 font-bold text-slate-400 hover:border-sky-300 hover:text-sky-500 transition-colors"
+          onClick={() => setRestoring(true)}
+        >
+          🔄 用手机号找回进度
+        </button>
       </div>
 
       <ConfirmDialog
@@ -100,6 +144,16 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
         }}
         onCancel={() => setPendingDelete(null)}
       />
+
+      <BindPhoneDialog
+        open={!!bindingId}
+        onConfirm={(phone) => {
+          if (bindingId) bindPhone(bindingId, phone)
+          setBindingId(null)
+        }}
+        onCancel={() => setBindingId(null)}
+      />
     </div>
   )
 }
+
