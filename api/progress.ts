@@ -1,7 +1,8 @@
 // 学习进度云同步接口
-// GET  /api/progress?phone=xxx        -> 返回该手机号下所有昵称的存档（供换设备后选择昵称找回进度）
-// PUT  /api/progress { phone, nickname, avatar, progress, video } -> 写入/覆盖该昵称的存档
-import { hgetall, hset, incrWithExpire, isRedisConfigured } from './_lib/redis.js'
+// GET    /api/progress?phone=xxx        -> 返回该手机号下所有昵称的存档（供换设备后选择昵称找回进度）
+// PUT    /api/progress { phone, nickname, avatar, progress, video } -> 写入/覆盖该昵称的存档
+// DELETE /api/progress?phone=xxx&nickname=yyy -> 删除该手机号下指定昵称的云端存档
+import { hdel, hgetall, hset, incrWithExpire, isRedisConfigured } from './_lib/redis.js'
 import { normalizeNickname, normalizePhone, syncKey } from './_lib/validate.js'
 import type { ApiRequest, ApiResponse } from './_lib/http.js'
 
@@ -23,8 +24,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       await handleGet(req, res)
     } else if (req.method === 'PUT') {
       await handlePut(req, res)
+    } else if (req.method === 'DELETE') {
+      await handleDelete(req, res)
     } else {
-      res.setHeader('Allow', 'GET, PUT')
+      res.setHeader('Allow', 'GET, PUT, DELETE')
       res.status(405).json({ error: 'Method Not Allowed' })
     }
   } catch (err) {
@@ -73,6 +76,19 @@ async function handlePut(req: ApiRequest, res: ApiResponse) {
   }
   await hset(syncKey(phone), nickname, JSON.stringify(record))
   res.status(200).json({ ok: true, updatedAt: record.updatedAt })
+}
+
+async function handleDelete(req: ApiRequest, res: ApiResponse) {
+  const phoneRaw = req.query?.phone
+  const nicknameRaw = req.query?.nickname
+  const phone = normalizePhone(Array.isArray(phoneRaw) ? phoneRaw[0] : phoneRaw)
+  const nickname = normalizeNickname(Array.isArray(nicknameRaw) ? nicknameRaw[0] : nicknameRaw)
+  if (!phone || !nickname) {
+    res.status(400).json({ error: '手机号或昵称格式不正确' })
+    return
+  }
+  await hdel(syncKey(phone), nickname)
+  res.status(200).json({ ok: true })
 }
 
 function safeJsonParse(text: string): unknown {

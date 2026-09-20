@@ -43,3 +43,14 @@ export async function pushCloudState(
     throw new Error(data?.error || '同步失败')
   }
 }
+
+export async function deleteCloudProfile(phone: string, nickname: string): Promise<void> {
+  const res = await fetch(
+    `/api/progress?phone=${encodeURIComponent(phone)}&nickname=${encodeURIComponent(nickname)}`,
+    { method: 'DELETE' },
+  )
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.error || '删除失败')
+  }
+}

@@ -48,6 +48,10 @@ export async function hset(key: string, field: string, value: string): Promise<v
   await redisCommand(['HSET', key, field, value])
 }
 
+export async function hdel(key: string, field: string): Promise<void> {
+  await redisCommand(['HDEL', key, field])
+}
+
 // 简单限流：INCR 计数 + 首次命中时设置过期时间，用于防止手机号被暴力枚举遍历
 export async function incrWithExpire(key: string, ttlSeconds: number): Promise<number> {
   const count = await redisCommand<number>(['INCR', key])

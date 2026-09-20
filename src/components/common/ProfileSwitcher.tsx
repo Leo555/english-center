@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useUsers } from '../../store/useUsers'
-import { fetchCloudProfiles, type CloudProfileRecord } from '../../lib/cloudSync'
+import { deleteCloudProfile, fetchCloudProfiles, type CloudProfileRecord } from '../../lib/cloudSync'
 import ConfirmDialog from '../common/ConfirmDialog'
 import CreateProfile from '../onboarding/CreateProfile'
 import AccountPhoneStep from '../onboarding/AccountPhoneStep'
@@ -9,6 +9,9 @@ interface Props {
   open: boolean
   onClose: () => void
 }
+
+// 待删除目标：本地资料（同时可能需要联动删除云端同名存档），或云端专属的存档（本机没有本地资料，直接删云端）
+type PendingDelete = { type: 'local'; id: string } | { type: 'cloud'; nickname: string }
 
 function formatPhone(phone?: string): string {
   if (!phone) return '未绑定'
@@ -26,7 +29,8 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
   // 或"切换家庭账号"流程中输入了新手机号后选择创建）
   const [addingForPhone, setAddingForPhone] = useState<string | null>(null)
   const [switchingAccount, setSwitchingAccount] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
+  const [deleting, setDeleting] = useState(false)
   // 云端下该账号手机号下、但本机还没有本地资料的孩子（比如在别的设备上创建的），
   // 仅用于在"切换孩子"面板里展示 + 一键找回，不影响本地已有资料的展示。
   const [cloudOnly, setCloudOnly] = useState<Record<string, CloudProfileRecord>>({})
@@ -107,7 +111,14 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
     )
   }
 
-  const pendingProfile = profiles.find((p) => p.id === pendingDelete)
+  const pendingLocalProfile =
+    pendingDelete?.type === 'local' ? profiles.find((p) => p.id === pendingDelete.id) : undefined
+  const pendingDeleteTitle =
+    pendingDelete?.type === 'local'
+      ? pendingLocalProfile?.nickname
+      : pendingDelete?.type === 'cloud'
+        ? pendingDelete.nickname
+        : undefined
 
   return (
     <div
@@ -144,7 +155,7 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
               {sameAccountProfiles.length > 1 && (
                 <button
                   className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
-                  onClick={() => setPendingDelete(p.id)}
+                  onClick={() => setPendingDelete({ type: 'local', id: p.id })}
                   aria-label="删除孩子"
                 >
                   🗑️
@@ -153,27 +164,38 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
             </div>
           ))}
           {Object.entries(cloudOnly).map(([nickname, record]) => (
-            <button
+            <div
               key={nickname}
-              disabled={restoringNickname !== null}
-              className="flex items-center gap-3 rounded-2xl px-3 py-2.5 bg-sky-50 hover:bg-sky-100 transition-colors disabled:opacity-50 text-left"
-              onClick={async () => {
-                if (!currentPhone) return
-                setRestoringNickname(nickname)
-                try {
-                  restoreFromCloud(currentPhone, nickname, record)
-                  onClose()
-                } finally {
-                  setRestoringNickname(null)
-                }
-              }}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2.5 bg-sky-50 hover:bg-sky-100 transition-colors"
             >
-              <span className="text-2xl">{record.avatar || '🦁'}</span>
-              <span className="font-bold text-slate-700">{nickname}</span>
-              <span className="text-xs text-sky-500 font-bold ml-auto shrink-0">
-                {restoringNickname === nickname ? '找回中…' : '☁️ 其他设备'}
-              </span>
-            </button>
+              <button
+                disabled={restoringNickname !== null}
+                className="flex items-center gap-3 flex-1 text-left disabled:opacity-50"
+                onClick={async () => {
+                  if (!currentPhone) return
+                  setRestoringNickname(nickname)
+                  try {
+                    restoreFromCloud(currentPhone, nickname, record)
+                    onClose()
+                  } finally {
+                    setRestoringNickname(null)
+                  }
+                }}
+              >
+                <span className="text-2xl">{record.avatar || '🦁'}</span>
+                <span className="font-bold text-slate-700">{nickname}</span>
+                <span className="text-xs text-sky-500 font-bold ml-auto shrink-0">
+                  {restoringNickname === nickname ? '找回中…' : '☁️ 其他设备'}
+                </span>
+              </button>
+              <button
+                className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
+                onClick={() => setPendingDelete({ type: 'cloud', nickname })}
+                aria-label="删除云端存档"
+              >
+                🗑️
+              </button>
+            </div>
           ))}
         </div>
 
@@ -195,13 +217,33 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
       <ConfirmDialog
         open={!!pendingDelete}
         emoji="🗑️"
-        title={`删除孩子${pendingProfile ? ` "${pendingProfile.nickname}"` : ''}？`}
+        title={`删除孩子${pendingDeleteTitle ? ` "${pendingDeleteTitle}"` : ''}？`}
         message="该孩子的学习进度将被永久删除，无法恢复。"
-        confirmText="删除"
+        confirmText={deleting ? '删除中…' : '删除'}
         cancelText="取消"
-        onConfirm={() => {
-          if (pendingDelete) removeProfile(pendingDelete)
-          setPendingDelete(null)
+        onConfirm={async () => {
+          if (!pendingDelete || deleting) return
+          setDeleting(true)
+          try {
+            if (pendingDelete.type === 'local') {
+              const target = profiles.find((p) => p.id === pendingDelete.id)
+              removeProfile(pendingDelete.id)
+              // 本地删除后，同步删掉该手机号下同名的云端存档，避免下次打开面板又被"找回"出来
+              if (target?.phone) {
+                deleteCloudProfile(target.phone, target.nickname).catch(() => {})
+              }
+            } else if (currentPhone) {
+              await deleteCloudProfile(currentPhone, pendingDelete.nickname)
+              setCloudOnly((prev) => {
+                const next = { ...prev }
+                delete next[pendingDelete.nickname]
+                return next
+              })
+            }
+          } finally {
+            setDeleting(false)
+            setPendingDelete(null)
+          }
         }}
         onCancel={() => setPendingDelete(null)}
       />
