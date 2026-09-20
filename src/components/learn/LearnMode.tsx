@@ -5,7 +5,17 @@ import Button from '../common/Button'
 import Mascot from '../common/Mascot'
 import ProgressBar from '../common/ProgressBar'
 
-export default function LearnMode({ unit, onDone, onBack }: { unit: UnitData; onDone: () => void; onBack: () => void }) {
+export default function LearnMode({
+  unit,
+  onDone,
+  onBack,
+  onPlay,
+}: {
+  unit: UnitData
+  onDone: () => void
+  onBack: () => void
+  onPlay: () => void
+}) {
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [finished, setFinished] = useState(false)
@@ -38,7 +48,14 @@ export default function LearnMode({ unit, onDone, onBack }: { unit: UnitData; on
     return (
       <div className="text-center py-8 flex flex-col items-center gap-4 animate-pop">
         <Mascot emoji="🎓" message="学习完成啦！现在去闯关巩固一下吧～" size="lg" />
-        <Button onClick={onBack}>返回单元</Button>
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onBack}>
+            返回单元
+          </Button>
+          <Button variant="primary" onClick={onPlay}>
+            🚀 去闯关
+          </Button>
+        </div>
       </div>
     )
   }

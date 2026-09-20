@@ -12,11 +12,23 @@ interface Props {
   onRetry: () => void
   onBack: () => void
   backLabel?: string
+  onNext?: () => void
+  nextLabel?: string
 }
 
 const MESSAGES = ['别灰心，再试一次一定行！💪', '不错哦，继续加油！👍', '太棒啦，你是小英语高手！🎉']
 
-export default function GameResult({ stars, correct, total, unlockedNext, onRetry, onBack, backLabel = '返回' }: Props) {
+export default function GameResult({
+  stars,
+  correct,
+  total,
+  unlockedNext,
+  onRetry,
+  onBack,
+  backLabel = '返回',
+  onNext,
+  nextLabel = '下一关 ➡️',
+}: Props) {
   const msgIndex = Math.max(0, Math.min(2, stars - 1))
 
   // 结算页出现时播放一次庆祝音效，星级越高越热烈
@@ -37,13 +49,18 @@ export default function GameResult({ stars, correct, total, unlockedNext, onRetr
           🔓 恭喜解锁下一关！
         </div>
       )}
-      <div className="flex gap-3 mt-2">
+      <div className="flex gap-3 mt-2 flex-wrap justify-center">
         <Button variant="ghost" onClick={onRetry}>
           🔁 再玩一次
         </Button>
-        <Button variant="primary" onClick={onBack}>
+        <Button variant={onNext ? 'ghost' : 'primary'} onClick={onBack}>
           {backLabel}
         </Button>
+        {onNext && (
+          <Button variant="primary" onClick={onNext}>
+            {nextLabel}
+          </Button>
+        )}
       </div>
     </div>
   )

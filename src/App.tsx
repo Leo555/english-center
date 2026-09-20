@@ -82,7 +82,12 @@ function LearnRoute() {
   const unit = findUnit(unitId)
   if (!unit) return <Navigate to="/map" replace />
   return (
-    <LearnMode unit={unit} onDone={() => markLearned(unitId)} onBack={() => navigate(`/unit/${unitId}`)} />
+    <LearnMode
+      unit={unit}
+      onDone={() => markLearned(unitId)}
+      onBack={() => navigate(`/unit/${unitId}`)}
+      onPlay={() => navigate(`/unit/${unitId}/game/picture`)}
+    />
   )
 }
 
@@ -91,12 +96,18 @@ function GameRoute() {
   const { unitId = '', gameType = '' } = useParams()
   const recordAnswer = useProgress((s) => s.recordAnswer)
   const setGameStars = useProgress((s) => s.setGameStars)
+  const isUnitUnlocked = useProgress((s) => s.isUnitUnlocked)
   const [gameResult, setGameResult] = useState<GameResultState | null>(null)
 
   const unit = findUnit(unitId)
   const isValidGameType = gameType === 'picture' || gameType === 'match' || gameType === 'elim'
   if (!unit || !isValidGameType) return <Navigate to="/map" replace />
   const gt = gameType as GameType
+
+  // 「下一关」按钮跳转目标：下一个单元，且必须已解锁（跨级/顺序解锁限制）且非占位开发中单元
+  const allUnits = getAllUnits()
+  const nextUnit = allUnits[allUnits.findIndex((u) => u.id === unit.id) + 1]
+  const nextUnitPlayable = !!nextUnit && nextUnit.words.length > 0 && isUnitUnlocked(nextUnit.id)
 
   if (gameResult) {
     return (
@@ -108,6 +119,8 @@ function GameRoute() {
         onRetry={() => setGameResult(null)}
         onBack={() => navigate(`/unit/${unitId}`)}
         backLabel="返回单元"
+        onNext={nextUnitPlayable ? () => navigate(`/unit/${nextUnit.id}`) : undefined}
+        nextLabel={`下一关：${nextUnit?.title ?? ''} ➡️`}
       />
     )
   }
@@ -119,9 +132,6 @@ function GameRoute() {
       onAnswer={(wordId, correct) => recordAnswer(wordId, unit.levelId, unit.id, correct)}
       onExit={() => navigate(`/unit/${unitId}`)}
       onFinish={(stars, correct, total) => {
-        const allUnits = getAllUnits()
-        const idx = allUnits.findIndex((u) => u.id === unit.id)
-        const nextUnit = allUnits[idx + 1]
         const wasUnlocked = nextUnit ? useProgress.getState().isUnitUnlocked(nextUnit.id) : true
         setGameStars(unit.id, gt, stars)
         const isUnlockedNow = nextUnit ? useProgress.getState().isUnitUnlocked(nextUnit.id) : true
