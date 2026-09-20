@@ -16,10 +16,10 @@ import type { CloudProfileRecord } from '../lib/cloudSync'
 
 export interface UserProfile {
   id: string
-  nickname: string
+  nickname: string // 孩子昵称（子用户）
   avatar: string // emoji 头像
   createdAt: number
-  phone?: string // 绑定的同步手机号；未绑定则该资料只存本地，不联网
+  phone?: string // 所属家庭账号手机号；未绑定则该资料只存本地，不联网（仅遗留数据可能出现此状态）
 }
 
 interface UsersState {
@@ -27,12 +27,12 @@ interface UsersState {
   currentUserId: string | null
 
   // actions
-  createProfile: (nickname: string, avatar: string) => string
+  // phone = 家庭账号手机号，创建孩子资料时必须归属到某个账号下
+  createProfile: (nickname: string, avatar: string, phone: string) => string
   switchUser: (id: string) => void
   renameProfile: (id: string, nickname: string) => void
   removeProfile: (id: string) => void
   bindPhone: (id: string, phone: string) => void
-  unbindPhone: (id: string) => void
   restoreFromCloud: (phone: string, nickname: string, record: CloudProfileRecord) => string
 
   // selectors
@@ -70,19 +70,24 @@ export const useUsers = create<UsersState>()(
       profiles: [],
       currentUserId: getCurrentUserId(),
 
-      createProfile: (nickname, avatar) => {
+      createProfile: (nickname, avatar, phone) => {
         const id = genId()
         const isFirstEverProfile = get().profiles.length === 0
+        const cleanPhone = phone.replace(/\D/g, '')
         const profile: UserProfile = {
           id,
           nickname: sanitizeNickname(nickname) || '小朋友',
           avatar: avatar || AVATAR_OPTIONS[0],
           createdAt: Date.now(),
+          phone: cleanPhone.length >= 6 && cleanPhone.length <= 20 ? cleanPhone : undefined,
         }
         if (isFirstEverProfile) migrateLegacyProgressIfNeeded(id)
         setCurrentUserId(id)
         set((s) => ({ profiles: [...s.profiles, profile], currentUserId: id }))
         reloadProgressForUser(id)
+        if (profile.phone) {
+          void import('../lib/autoSync').then((m) => m.syncNow())
+        }
         return id
       },
 
@@ -118,8 +123,9 @@ export const useUsers = create<UsersState>()(
         reloadProgressForUser(nextCurrentUserId)
       },
 
-      // 给某个本地资料绑定同步手机号：之后进度/视频进度变化会自动 debounce 推送到该手机号下（以昵称为字段）。
+      // 给某个本地资料绑定所属家庭账号手机号：之后进度/视频进度变化会自动 debounce 推送到该手机号下（以昵称为字段）。
       // 立即触发一次推送，让这个手机号下马上能查到这份资料（换设备时才不会显示"暂无云端存档"）。
+      // 目前仅用于 LegacyPhoneMigrationGate 补录存量老资料；新建资料已在 createProfile 时直接写入 phone。
       bindPhone: (id, phone) => {
         const clean = phone.replace(/\D/g, '')
         if (clean.length < 6 || clean.length > 20) return
@@ -127,11 +133,6 @@ export const useUsers = create<UsersState>()(
         if (get().currentUserId === id) {
           void import('../lib/autoSync').then((m) => m.syncNow())
         }
-      },
-
-      // 解绑后仅停止后续自动同步，不会删除云端已存的存档
-      unbindPhone: (id) => {
-        set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? { ...p, phone: undefined } : p)) }))
       },
 
       // 换设备后用手机号找回进度：若本机已存在同手机号+同昵称的资料则直接复用，否则新建一份本地资料，

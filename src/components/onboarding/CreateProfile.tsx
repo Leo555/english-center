@@ -4,31 +4,22 @@ import Button from '../common/Button'
 import Mascot from '../common/Mascot'
 
 interface Props {
+  phone: string // 家庭账号手机号，此步骤前已确定，不再重复填写
   mode?: 'onboarding' | 'add'
   onDone?: (id: string) => void
   onCancel?: () => void
 }
 
-export default function CreateProfile({ mode = 'onboarding', onDone, onCancel }: Props) {
+export default function CreateProfile({ phone, mode = 'onboarding', onDone, onCancel }: Props) {
   const createProfile = useUsers((s) => s.createProfile)
-  const bindPhone = useUsers((s) => s.bindPhone)
   const [nickname, setNickname] = useState('')
   const [avatar, setAvatar] = useState(AVATAR_OPTIONS[0])
-  const [phone, setPhone] = useState('')
-  const [phoneTouched, setPhoneTouched] = useState(false)
 
-  // 手机号现在是必填项，长度校验需与后端 api/_lib/validate.ts 的 normalizePhone 保持一致（6~20 位数字）
-  const cleanPhone = phone.replace(/\D/g, '')
-  const phoneValid = cleanPhone.length >= 6 && cleanPhone.length <= 20
-  const showPhoneError = phoneTouched && !phoneValid
-
-  const canSubmit = nickname.trim().length > 0 && phoneValid
+  const canSubmit = nickname.trim().length > 0
 
   const handleSubmit = () => {
-    setPhoneTouched(true)
     if (!canSubmit) return
-    const id = createProfile(nickname, avatar)
-    bindPhone(id, cleanPhone)
+    const id = createProfile(nickname, avatar, phone)
     onDone?.(id)
   }
 
@@ -37,14 +28,14 @@ export default function CreateProfile({ mode = 'onboarding', onDone, onCancel }:
       {mode === 'onboarding' && (
         <>
           <div className="text-4xl font-extrabold text-orange-500 drop-shadow-sm">🚀 Power Up 小英雄</div>
-          <Mascot emoji="🦊" message="嗨，你好呀！先告诉我你的名字吧～" size="lg" />
+          <Mascot emoji="🦊" message="嗨，你好呀！先告诉我孩子的名字吧～" size="lg" />
         </>
       )}
-      {mode === 'add' && <div className="text-2xl font-extrabold text-orange-500">✨ 创建新用户</div>}
+      {mode === 'add' && <div className="text-2xl font-extrabold text-orange-500">✨ 添加新的孩子</div>}
 
       <div className="w-full max-w-xs bg-white/80 rounded-2xl p-5 shadow flex flex-col gap-4">
         <div className="text-left">
-          <label className="block text-sm font-bold text-slate-500 mb-1">你的昵称</label>
+          <label className="block text-sm font-bold text-slate-500 mb-1">孩子的昵称</label>
           <input
             autoFocus
             value={nickname}
@@ -74,24 +65,6 @@ export default function CreateProfile({ mode = 'onboarding', onDone, onCancel }:
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="text-left">
-          <label className="block text-sm font-bold text-slate-500 mb-1">
-            手机号<span className="text-rose-400">（必填，用于云端同步）</span>
-          </label>
-          <input
-            inputMode="numeric"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            onBlur={() => setPhoneTouched(true)}
-            maxLength={20}
-            placeholder="换设备后可用手机号找回进度"
-            className={`w-full rounded-xl border-2 px-4 py-2.5 text-base font-bold text-slate-700 outline-none transition-colors ${
-              showPhoneError ? 'border-rose-300 focus:border-rose-400' : 'border-slate-200 focus:border-amber-400'
-            }`}
-          />
-          {showPhoneError && <p className="text-xs text-rose-400 mt-1">请输入 6~20 位手机号</p>}
         </div>
       </div>
 

@@ -15,7 +15,7 @@ import GamePlayer from './components/games/GamePlayer'
 import GameResult from './components/games/GameResult'
 import ReviewMode from './components/review/ReviewMode'
 import CreateProfile from './components/onboarding/CreateProfile'
-import CloudRestore from './components/onboarding/CloudRestore'
+import AccountPhoneStep from './components/onboarding/AccountPhoneStep'
 import VideoZone from './components/videos/VideoZone'
 import VideoPlayer from './components/videos/VideoPlayer'
 import SpeechFallbackBanner from './components/common/SpeechFallbackBanner'
@@ -148,23 +148,16 @@ function VideoPlayerRoute() {
   return <VideoPlayer videoId={videoId} onBack={() => navigate('/videos')} />
 }
 
+// 首次进入：先确定家庭账号手机号（若该账号下已有孩子，可直接选择继续），
+// 再进入创建孩子资料页——手机号不会在这一步之后重复询问。
 function OnboardingRoute() {
-  const [mode, setMode] = useState<'create' | 'restore'>('create')
+  const [phone, setPhone] = useState<string | null>(null)
 
-  if (mode === 'restore') {
-    return <CloudRestore onDone={() => {}} onCancel={() => setMode('create')} />
+  if (phone) {
+    return <CreateProfile mode="onboarding" phone={phone} onCancel={() => setPhone(null)} />
   }
 
-  return (
-    <>
-      <CreateProfile mode="onboarding" />
-      <div className="text-center mt-4">
-        <button onClick={() => setMode('restore')} className="text-sm text-slate-400 underline">
-          ☁️ 已绑定过手机号？点此找回学习进度
-        </button>
-      </div>
-    </>
-  )
+  return <AccountPhoneStep onCreateNew={setPhone} />
 }
 
 // ============================================================================

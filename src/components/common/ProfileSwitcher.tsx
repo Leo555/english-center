@@ -1,13 +1,18 @@
 import { useState } from 'react'
 import { useUsers } from '../../store/useUsers'
 import ConfirmDialog from '../common/ConfirmDialog'
-import BindPhoneDialog from '../common/BindPhoneDialog'
 import CreateProfile from '../onboarding/CreateProfile'
-import CloudRestore from '../onboarding/CloudRestore'
+import AccountPhoneStep from '../onboarding/AccountPhoneStep'
 
 interface Props {
   open: boolean
   onClose: () => void
+}
+
+function formatPhone(phone?: string): string {
+  if (!phone) return '未绑定'
+  if (phone.length <= 4) return phone
+  return `${phone.slice(0, phone.length - 4).replace(/\d/g, '*')}${phone.slice(-4)}`
 }
 
 export default function ProfileSwitcher({ open, onClose }: Props) {
@@ -15,42 +20,52 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
   const currentUserId = useUsers((s) => s.currentUserId)
   const switchUser = useUsers((s) => s.switchUser)
   const removeProfile = useUsers((s) => s.removeProfile)
-  const bindPhone = useUsers((s) => s.bindPhone)
-  const unbindPhone = useUsers((s) => s.unbindPhone)
-  const [adding, setAdding] = useState(false)
-  const [restoring, setRestoring] = useState(false)
+  // 非空时表示正在为该手机号创建新孩子资料（来源：当前账号下"添加新的孩子"，
+  // 或"切换家庭账号"流程中输入了新手机号后选择创建）
+  const [addingForPhone, setAddingForPhone] = useState<string | null>(null)
+  const [switchingAccount, setSwitchingAccount] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
-  const [bindingId, setBindingId] = useState<string | null>(null)
 
   if (!open) return null
 
-  if (adding) {
+  const currentProfile = profiles.find((p) => p.id === currentUserId)
+  // 家庭账号 = 手机号：同一账号下的孩子共享同一个手机号，取当前孩子的手机号作为账号标识
+  const currentPhone = currentProfile?.phone
+  const sameAccountProfiles = currentPhone ? profiles.filter((p) => p.phone === currentPhone) : []
+
+  if (addingForPhone) {
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-b from-amber-50 to-sky-50 overflow-y-auto">
         <div className="max-w-lg mx-auto px-4 py-6">
           <CreateProfile
             mode="add"
+            phone={addingForPhone}
             onDone={() => {
-              setAdding(false)
+              setAddingForPhone(null)
               onClose()
             }}
-            onCancel={() => setAdding(false)}
+            onCancel={() => setAddingForPhone(null)}
           />
         </div>
       </div>
     )
   }
 
-  if (restoring) {
+  if (switchingAccount) {
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-b from-amber-50 to-sky-50 overflow-y-auto">
         <div className="max-w-lg mx-auto px-4 py-6">
-          <CloudRestore
-            onDone={() => {
-              setRestoring(false)
+          <AccountPhoneStep
+            message="切换到另一个家庭账号：输入手机号继续该账号下的孩子，或创建新孩子"
+            onPicked={() => {
+              setSwitchingAccount(false)
               onClose()
             }}
-            onCancel={() => setRestoring(false)}
+            onCreateNew={(phone) => {
+              setSwitchingAccount(false)
+              setAddingForPhone(phone)
+            }}
+            onCancel={() => setSwitchingAccount(false)}
           />
         </div>
       </div>
@@ -68,9 +83,12 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
         className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-xl animate-pop max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="font-fun font-bold text-lg text-slate-700 text-center mb-4">切换用户</div>
+        <div className="font-fun font-bold text-lg text-slate-700 text-center mb-1">切换孩子</div>
+        <div className="text-center text-xs text-slate-400 mb-4">
+          当前账号 {formatPhone(currentPhone)}
+        </div>
         <div className="flex flex-col gap-2">
-          {profiles.map((p) => (
+          {sameAccountProfiles.map((p) => (
             <div
               key={p.id}
               className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors ${
@@ -88,27 +106,11 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
                 <span className="font-bold text-slate-700">{p.nickname}</span>
                 {p.id === currentUserId && <span className="text-xs text-amber-500 font-bold ml-1">当前</span>}
               </button>
-              {p.phone ? (
-                <button
-                  className="text-xs text-sky-400 font-bold shrink-0 px-1"
-                  onClick={() => unbindPhone(p.id)}
-                  title="点击解除手机号同步"
-                >
-                  ☁️ 已同步
-                </button>
-              ) : (
-                <button
-                  className="text-xs text-slate-300 hover:text-sky-400 font-bold shrink-0 px-1"
-                  onClick={() => setBindingId(p.id)}
-                >
-                  绑定同步
-                </button>
-              )}
-              {profiles.length > 1 && (
+              {sameAccountProfiles.length > 1 && (
                 <button
                   className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
                   onClick={() => setPendingDelete(p.id)}
-                  aria-label="删除用户"
+                  aria-label="删除孩子"
                 >
                   🗑️
                 </button>
@@ -118,24 +120,25 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
         </div>
 
         <button
-          className="w-full mt-4 rounded-2xl border-2 border-dashed border-slate-200 py-3 font-bold text-slate-400 hover:border-amber-300 hover:text-amber-500 transition-colors"
-          onClick={() => setAdding(true)}
+          className="w-full mt-4 rounded-2xl border-2 border-dashed border-slate-200 py-3 font-bold text-slate-400 hover:border-amber-300 hover:text-amber-500 transition-colors disabled:opacity-40"
+          onClick={() => currentPhone && setAddingForPhone(currentPhone)}
+          disabled={!currentPhone}
         >
-          ➕ 添加新用户
+          ➕ 添加新的孩子
         </button>
         <button
           className="w-full mt-2 rounded-2xl border-2 border-dashed border-slate-200 py-3 font-bold text-slate-400 hover:border-sky-300 hover:text-sky-500 transition-colors"
-          onClick={() => setRestoring(true)}
+          onClick={() => setSwitchingAccount(true)}
         >
-          🔄 用手机号找回进度
+          📱 切换家庭账号
         </button>
       </div>
 
       <ConfirmDialog
         open={!!pendingDelete}
         emoji="🗑️"
-        title={`删除用户${pendingProfile ? ` "${pendingProfile.nickname}"` : ''}？`}
-        message="该用户的学习进度将被永久删除，无法恢复。"
+        title={`删除孩子${pendingProfile ? ` "${pendingProfile.nickname}"` : ''}？`}
+        message="该孩子的学习进度将被永久删除，无法恢复。"
         confirmText="删除"
         cancelText="取消"
         onConfirm={() => {
@@ -144,16 +147,6 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
         }}
         onCancel={() => setPendingDelete(null)}
       />
-
-      <BindPhoneDialog
-        open={!!bindingId}
-        onConfirm={(phone) => {
-          if (bindingId) bindPhone(bindingId, phone)
-          setBindingId(null)
-        }}
-        onCancel={() => setBindingId(null)}
-      />
     </div>
   )
 }
-
