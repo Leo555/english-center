@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useUsers } from '../../store/useUsers'
+import { fetchCloudProfiles, type CloudProfileRecord } from '../../lib/cloudSync'
 import ConfirmDialog from '../common/ConfirmDialog'
 import CreateProfile from '../onboarding/CreateProfile'
 import AccountPhoneStep from '../onboarding/AccountPhoneStep'
@@ -20,18 +21,52 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
   const currentUserId = useUsers((s) => s.currentUserId)
   const switchUser = useUsers((s) => s.switchUser)
   const removeProfile = useUsers((s) => s.removeProfile)
+  const restoreFromCloud = useUsers((s) => s.restoreFromCloud)
   // 非空时表示正在为该手机号创建新孩子资料（来源：当前账号下"添加新的孩子"，
   // 或"切换家庭账号"流程中输入了新手机号后选择创建）
   const [addingForPhone, setAddingForPhone] = useState<string | null>(null)
   const [switchingAccount, setSwitchingAccount] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
-
-  if (!open) return null
+  // 云端下该账号手机号下、但本机还没有本地资料的孩子（比如在别的设备上创建的），
+  // 仅用于在"切换孩子"面板里展示 + 一键找回，不影响本地已有资料的展示。
+  const [cloudOnly, setCloudOnly] = useState<Record<string, CloudProfileRecord>>({})
+  const [restoringNickname, setRestoringNickname] = useState<string | null>(null)
 
   const currentProfile = profiles.find((p) => p.id === currentUserId)
   // 家庭账号 = 手机号：同一账号下的孩子共享同一个手机号，取当前孩子的手机号作为账号标识
   const currentPhone = currentProfile?.phone
   const sameAccountProfiles = currentPhone ? profiles.filter((p) => p.phone === currentPhone) : []
+  const localNicknames = new Set(sameAccountProfiles.map((p) => p.nickname))
+
+  // 面板打开时，顺便查一次云端该手机号下实际有哪些孩子——
+  // 本地列表只反映"这台设备曾创建过的孩子"，同账号在别的设备上创建的孩子本地是看不到的，
+  // 这里补一次云端查询，把本地没有的昵称也列出来，点击即可一键找回到本机。
+  useEffect(() => {
+    if (!open || !currentPhone) {
+      setCloudOnly({})
+      return
+    }
+    let cancelled = false
+    fetchCloudProfiles(currentPhone)
+      .then((result) => {
+        if (cancelled) return
+        const extra: Record<string, CloudProfileRecord> = {}
+        for (const [nickname, record] of Object.entries(result)) {
+          if (!localNicknames.has(nickname)) extra[nickname] = record
+        }
+        setCloudOnly(extra)
+      })
+      .catch(() => {
+        // 云端未配置或网络异常：静默忽略，不影响本地列表的正常展示
+        if (!cancelled) setCloudOnly({})
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, currentPhone, profiles.length])
+
+  if (!open) return null
 
   if (addingForPhone) {
     return (
@@ -116,6 +151,29 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
                 </button>
               )}
             </div>
+          ))}
+          {Object.entries(cloudOnly).map(([nickname, record]) => (
+            <button
+              key={nickname}
+              disabled={restoringNickname !== null}
+              className="flex items-center gap-3 rounded-2xl px-3 py-2.5 bg-sky-50 hover:bg-sky-100 transition-colors disabled:opacity-50 text-left"
+              onClick={async () => {
+                if (!currentPhone) return
+                setRestoringNickname(nickname)
+                try {
+                  restoreFromCloud(currentPhone, nickname, record)
+                  onClose()
+                } finally {
+                  setRestoringNickname(null)
+                }
+              }}
+            >
+              <span className="text-2xl">{record.avatar || '🦁'}</span>
+              <span className="font-bold text-slate-700">{nickname}</span>
+              <span className="text-xs text-sky-500 font-bold ml-auto shrink-0">
+                {restoringNickname === nickname ? '找回中…' : '☁️ 其他设备'}
+              </span>
+            </button>
           ))}
         </div>
 
