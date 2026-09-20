@@ -56,9 +56,21 @@ const FIRST_UNIT_ID = 'L1-U1'
 // 的解锁记录会永久保留、无法被后续修复自动纠正（因为从不会被"收回"）。
 // 因此改为纯函数式：只依据当前真实的 unitProgress 从零推导一遍完整的解锁表，
 // 这样即使之前的本地存储里有历史遗留的错误解锁，也会在下一次调用时被自动纠正。
+
+// Power Up 1、2 级作为入门内容，全部单元直接开放（无需按顺序通关），方便新用户自由试学；
+// 从第 3 级（L3）开始才恢复"必须先通关前置单元/前一级"的限制。
+const FREE_LEVEL_IDS = new Set(['L1', 'L2'])
+
 function recomputeUnlocks(progress: Record<string, UnitProgress>): Record<string, boolean> {
   const next: Record<string, boolean> = { [FIRST_UNIT_ID]: true }
   const allUnits = getAllUnits()
+
+  // 前两级全部单元直接放开，不受下方"前一单元/前一级是否通关"的限制
+  for (const u of allUnits) {
+    if (FREE_LEVEL_IDS.has(u.levelId)) {
+      next[u.id] = true
+    }
+  }
 
   const cleared = (unitId: string) => {
     const u = findUnit(unitId)
