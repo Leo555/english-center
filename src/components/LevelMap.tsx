@@ -52,20 +52,24 @@ export default function LevelMap({
               key={lv.id}
               disabled={!unlocked}
               onClick={() => onSelectLevel(lv.id)}
-              className={`rounded-2xl p-4 shadow-lg bg-gradient-to-r ${lv.gradient} text-white text-left disabled:opacity-40 disabled:grayscale transition-all`}
+              className={`rounded-2xl p-4 text-left transition-all flex items-center justify-between gap-3 ${
+                unlocked
+                  ? `shadow-lg bg-gradient-to-r ${lv.gradient} text-white`
+                  : 'shadow-sm bg-slate-100 text-slate-400'
+              }`}
             >
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-xl font-extrabold">
-                    {lv.name} {!unlocked && '🔒'}
-                  </div>
-                  <div className="text-sm opacity-90">
-                    适合 {lv.ageRange} · CEFR {lv.cefr} · 剑桥 {lv.cambridge}
-                  </div>
+              <div>
+                <div className="text-xl font-extrabold">{lv.name}</div>
+                <div className={`text-sm ${unlocked ? 'opacity-90' : 'text-slate-400'}`}>
+                  适合 {lv.ageRange} · CEFR {lv.cefr} · 剑桥 {lv.cambridge}
                 </div>
-                <div className="text-3xl">{unlocked ? '▶️' : '🔒'}</div>
+                <div className={`text-xs mt-1 ${unlocked ? 'opacity-80' : 'text-slate-400'}`}>
+                  目标词汇量 {lv.vocabTarget}+
+                </div>
               </div>
-              <div className="text-xs opacity-80 mt-1">目标词汇量 {lv.vocabTarget}+</div>
+              <div className="w-9 h-9 shrink-0 flex items-center justify-center text-3xl leading-none">
+                {unlocked ? '▶️' : '🔒'}
+              </div>
             </button>
           )
         })}
