@@ -1,9 +1,9 @@
 // 学习进度云同步接口
 // GET  /api/progress?phone=xxx        -> 返回该手机号下所有昵称的存档（供换设备后选择昵称找回进度）
 // PUT  /api/progress { phone, nickname, avatar, progress, video } -> 写入/覆盖该昵称的存档
-import { hgetall, hset, incrWithExpire, isRedisConfigured } from './_lib/redis'
-import { normalizeNickname, normalizePhone, syncKey } from './_lib/validate'
-import type { ApiRequest, ApiResponse } from './_lib/http'
+import { hgetall, hset, incrWithExpire, isRedisConfigured } from './_lib/redis.js'
+import { normalizeNickname, normalizePhone, syncKey } from './_lib/validate.js'
+import type { ApiRequest, ApiResponse } from './_lib/http.js'
 
 interface CloudRecord {
   avatar: string
