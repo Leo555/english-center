@@ -5,6 +5,7 @@ import { findLevel, findUnit, getAllUnits } from './data/levels'
 import { findVideo } from './data/videos'
 import { useProgress } from './store/useProgress'
 import { useUsers } from './store/useUsers'
+import { hasStoredProgress, VIDEO_PROGRESS_STORAGE_PREFIX } from './store/userSession'
 import Home from './components/Home'
 import LevelMap from './components/LevelMap'
 import VocabList from './components/VocabList'
@@ -18,6 +19,7 @@ import CloudRestore from './components/onboarding/CloudRestore'
 import VideoZone from './components/videos/VideoZone'
 import VideoPlayer from './components/videos/VideoPlayer'
 import SpeechFallbackBanner from './components/common/SpeechFallbackBanner'
+import BindPhoneDialog from './components/common/BindPhoneDialog'
 
 interface GameResultState {
   stars: number
@@ -165,6 +167,51 @@ function OnboardingRoute() {
   )
 }
 
+// ============================================================================
+// ⚠️ 临时迁移逻辑（TEMPORARY MIGRATION CODE）—— 手机号改为必填之前的存量用户补录
+// ----------------------------------------------------------------------------
+// 背景：手机号云同步上线初期是选填的，一部分老用户已经在本机积累了学习进度，
+// 但资料上并没有绑定手机号，云端完全没有这些人的存档。
+// 现在新建资料时手机号已改为必填（见 CreateProfile.tsx），但"必填"只对新建
+// 资料生效，无法覆盖这些已经存在的老资料——他们不会再经过 CreateProfile 页面。
+// 所以这里加一个启动时的强制补录弹窗：只要当前资料"本地已有学习进度/视频进度
+// 数据，但没有绑定手机号"，就弹出手机号绑定框（背景点击/无操作都不可关闭），
+// 绑完后立即触发一次云端同步（bindPhone 内部已包含 syncNow 逻辑），把这份老
+// 数据补传上去。全新创建的空资料不会触发（因为在 CreateProfile 里已经强制填过手机号）。
+//
+// 何时可以删除：等这次改动上线并稳定运行一段时间、老用户基本都补录完手机号后，
+// 直接删除 <LegacyPhoneMigrationGate /> 这个组件定义、以及下面在 App() 里对它的
+// 渲染即可，不需要保留（新建资料从创建时起就必然有手机号，不会再产生"本地有
+// 进度但没绑手机号"的存量用户）。
+// ============================================================================
+function hasAnyLocalData(userId: string): boolean {
+  if (hasStoredProgress(userId)) return true
+  try {
+    return localStorage.getItem(`${VIDEO_PROGRESS_STORAGE_PREFIX}:${userId}`) != null
+  } catch {
+    return false
+  }
+}
+
+function LegacyPhoneMigrationGate() {
+  const profile = useUsers((s) => s.getCurrentProfile())
+  const bindPhone = useUsers((s) => s.bindPhone)
+
+  if (!profile || profile.phone) return null
+  if (!hasAnyLocalData(profile.id)) return null
+
+  return (
+    <BindPhoneDialog
+      open
+      onConfirm={(phone) => bindPhone(profile.id, phone)}
+      onCancel={() => {
+        // 有意留空：手机号必填，不允许跳过；点击背景/取消都不会关闭弹窗，
+        // 弹窗会在 profile.phone 变为非空后（即绑定成功）随下一次渲染自动消失。
+      }}
+    />
+  )
+}
+
 export default function App() {
   const currentUserId = useUsers((s) => s.currentUserId)
 
@@ -183,6 +230,7 @@ export default function App() {
     <HashRouter>
       <div className="min-h-screen w-full px-4 py-6 pb-16">
         <SpeechFallbackBanner />
+        <LegacyPhoneMigrationGate />
         <div className="max-w-lg mx-auto">
           <Routes>
             <Route path="/" element={<HomeRoute />} />

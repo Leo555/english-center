@@ -47,9 +47,19 @@
 ### 运行方式
 ```bash
 npm install
-npm run dev      # 本地开发预览
+npm run dev      # 本地开发预览（纯前端，/api 云同步接口不可用，见下方说明）
 npm run build    # 生产构建
 ```
+
+> ⚠️ **本地调试云同步接口（`/api/*`）时不要用 `npm run dev`**：`api/` 目录下是 Vercel Serverless
+> Function，只有部署到 Vercel、或用 Vercel CLI 本地模拟时才会生效；单纯的 `vite` 开发服务器
+> 并不认识 `/api` 路由，请求会直接 404（浏览器网络面板看到的现象）。需要本地联调云同步时：
+> ```bash
+> npm run dev:api           # 等价于 vercel dev，会同时启动前端 + 本地模拟 api/*.ts
+> ```
+> 首次运行会提示登录并关联 Vercel 项目（`vercel login` / `vercel link`），按提示选择/创建
+> 对应项目即可，之后再运行 `npm run dev:api` 就会自动读取项目已配置的环境变量（包括 Redis
+> 连接信息）。未接入 Redis 时，接口会返回 503「云同步暂未配置」而不是 404，属于正常提示。
 
 ## 四、如何扩充词库（接入 Power Up 3-6 真实教材内容）
 
@@ -63,7 +73,7 @@ w('elephant', '大象', '/ˈelɪfənt/', '🐘', 'The elephant is big.', '大象
 
 ## 五、云端同步进度（手机号 + 昵称）
 
-- **身份标识**：用「手机号」作为同步分组标识，「昵称」区分同一手机号下的多个孩子。创建资料时可选填手机号绑定；换设备后在首页/切换用户页输入同一手机号，即可选择昵称找回进度。
+- **身份标识**：用「手机号」作为同步分组标识，「昵称」区分同一手机号下的多个孩子。创建资料时手机号为**必填项**（前端会校验 6~20 位长度）；换设备后在首页/切换用户页输入同一手机号，即可选择昵称找回进度。旧版本创建的、本地已有进度但未绑定手机号的存量资料，会在启动时弹出强制补录弹窗（临时迁移逻辑，见 `App.tsx` 中 `LegacyPhoneMigrationGate` 的注释）。
 - **同步内容**：闯关进度（解锁单元、星级、错题本）+ 视频观看记录；未绑定手机号的资料完全离线运行，不发起任何网络请求。
 - **技术实现**：Vercel Serverless Function（`api/progress.ts`）+ Upstash Redis（REST API，零 SDK 依赖）。数据结构为 `HASH powerup:sync:<手机号>`，字段为昵称，值为该孩子的进度 JSON——不同孩子字段级独立写入，多设备/多孩子互不冲突。
 - **部署前置条件**：在 Vercel 项目的 Storage 面板接入 Redis（Marketplace → Upstash Redis），环境变量会自动注入（`KV_REST_API_URL`/`KV_REST_API_TOKEN` 或 `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`），无需手动配置。未接入 Redis 前，云同步接口会返回"暂未配置"提示，不影响本地离线使用。

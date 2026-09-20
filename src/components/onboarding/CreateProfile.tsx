@@ -15,14 +15,20 @@ export default function CreateProfile({ mode = 'onboarding', onDone, onCancel }:
   const [nickname, setNickname] = useState('')
   const [avatar, setAvatar] = useState(AVATAR_OPTIONS[0])
   const [phone, setPhone] = useState('')
+  const [phoneTouched, setPhoneTouched] = useState(false)
 
-  const canSubmit = nickname.trim().length > 0
+  // 手机号现在是必填项，长度校验需与后端 api/_lib/validate.ts 的 normalizePhone 保持一致（6~20 位数字）
+  const cleanPhone = phone.replace(/\D/g, '')
+  const phoneValid = cleanPhone.length >= 6 && cleanPhone.length <= 20
+  const showPhoneError = phoneTouched && !phoneValid
+
+  const canSubmit = nickname.trim().length > 0 && phoneValid
 
   const handleSubmit = () => {
+    setPhoneTouched(true)
     if (!canSubmit) return
     const id = createProfile(nickname, avatar)
-    const cleanPhone = phone.replace(/\D/g, '')
-    if (cleanPhone.length >= 6) bindPhone(id, cleanPhone)
+    bindPhone(id, cleanPhone)
     onDone?.(id)
   }
 
@@ -71,15 +77,21 @@ export default function CreateProfile({ mode = 'onboarding', onDone, onCancel }:
         </div>
 
         <div className="text-left">
-          <label className="block text-sm font-bold text-slate-500 mb-1">手机号（选填，用于云端同步）</label>
+          <label className="block text-sm font-bold text-slate-500 mb-1">
+            手机号<span className="text-rose-400">（必填，用于云端同步）</span>
+          </label>
           <input
             inputMode="numeric"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
+            onBlur={() => setPhoneTouched(true)}
             maxLength={20}
-            placeholder="填写后可在其他设备找回进度"
-            className="w-full rounded-xl border-2 border-slate-200 px-4 py-2.5 text-base font-bold text-slate-700 outline-none focus:border-amber-400 transition-colors"
+            placeholder="换设备后可用手机号找回进度"
+            className={`w-full rounded-xl border-2 px-4 py-2.5 text-base font-bold text-slate-700 outline-none transition-colors ${
+              showPhoneError ? 'border-rose-300 focus:border-rose-400' : 'border-slate-200 focus:border-amber-400'
+            }`}
           />
+          {showPhoneError && <p className="text-xs text-rose-400 mt-1">请输入 6~20 位手机号</p>}
         </div>
       </div>
 
