@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Button from './Button'
 
 interface Props {
@@ -7,6 +8,8 @@ interface Props {
   message?: string
   confirmText?: string
   cancelText?: string
+  confirmDisabled?: boolean
+  children?: ReactNode
   onConfirm: () => void
   onCancel: () => void
 }
@@ -18,6 +21,8 @@ export default function ConfirmDialog({
   message,
   confirmText = '确定',
   cancelText = '取消',
+  confirmDisabled = false,
+  children,
   onConfirm,
   onCancel,
 }: Props) {
@@ -35,11 +40,12 @@ export default function ConfirmDialog({
         <div className="text-5xl mb-2 select-none">{emoji}</div>
         <div className="font-fun font-bold text-lg text-slate-700">{title}</div>
         {message && <div className="mt-1 text-sm text-slate-400">{message}</div>}
+        {children}
         <div className="mt-5 flex gap-3">
           <Button variant="ghost" fullWidth onClick={onCancel}>
             {cancelText}
           </Button>
-          <Button variant="primary" fullWidth onClick={onConfirm}>
+          <Button variant="primary" fullWidth onClick={onConfirm} disabled={confirmDisabled}>
             {confirmText}
           </Button>
         </div>

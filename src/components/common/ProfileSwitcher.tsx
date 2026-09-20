@@ -31,6 +31,13 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
   const [switchingAccount, setSwitchingAccount] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // 删除需二次输入完整手机号确认，防止误触删除孩子/云端存档
+  const [confirmPhoneInput, setConfirmPhoneInput] = useState('')
+
+  function openDeleteConfirm(target: PendingDelete) {
+    setConfirmPhoneInput('')
+    setPendingDelete(target)
+  }
   // 云端下该账号手机号下、但本机还没有本地资料的孩子（比如在别的设备上创建的），
   // 仅用于在"切换孩子"面板里展示 + 一键找回，不影响本地已有资料的展示。
   const [cloudOnly, setCloudOnly] = useState<Record<string, CloudProfileRecord>>({})
@@ -155,7 +162,7 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
               {sameAccountProfiles.length > 1 && (
                 <button
                   className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
-                  onClick={() => setPendingDelete({ type: 'local', id: p.id })}
+                  onClick={() => openDeleteConfirm({ type: 'local', id: p.id })}
                   aria-label="删除孩子"
                 >
                   🗑️
@@ -190,7 +197,7 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
               </button>
               <button
                 className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
-                onClick={() => setPendingDelete({ type: 'cloud', nickname })}
+                onClick={() => openDeleteConfirm({ type: 'cloud', nickname })}
                 aria-label="删除云端存档"
               >
                 🗑️
@@ -218,11 +225,13 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
         open={!!pendingDelete}
         emoji="🗑️"
         title={`删除孩子${pendingDeleteTitle ? ` "${pendingDeleteTitle}"` : ''}？`}
-        message="该孩子的学习进度将被永久删除，无法恢复。"
+        message="该孩子的学习进度将被永久删除，无法恢复。为防止误删，请输入当前账号手机号确认："
         confirmText={deleting ? '删除中…' : '删除'}
         cancelText="取消"
+        confirmDisabled={deleting || !currentPhone || confirmPhoneInput.trim() !== currentPhone}
         onConfirm={async () => {
-          if (!pendingDelete || deleting) return
+          if (!pendingDelete || deleting || !currentPhone) return
+          if (confirmPhoneInput.trim() !== currentPhone) return
           setDeleting(true)
           try {
             if (pendingDelete.type === 'local') {
@@ -232,7 +241,7 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
               if (target?.phone) {
                 deleteCloudProfile(target.phone, target.nickname).catch(() => {})
               }
-            } else if (currentPhone) {
+            } else {
               await deleteCloudProfile(currentPhone, pendingDelete.nickname)
               setCloudOnly((prev) => {
                 const next = { ...prev }
@@ -246,7 +255,17 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
           }
         }}
         onCancel={() => setPendingDelete(null)}
-      />
+      >
+        <input
+          type="tel"
+          inputMode="numeric"
+          autoFocus
+          value={confirmPhoneInput}
+          onChange={(e) => setConfirmPhoneInput(e.target.value)}
+          placeholder={currentPhone ? formatPhone(currentPhone).replace(/\*/g, '·') : ''}
+          className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-center text-sm tracking-widest text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
+        />
+      </ConfirmDialog>
     </div>
   )
 }
