@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AVATAR_OPTIONS, useUsers, type UserProfile } from '../../store/useUsers'
 import Button from './Button'
 
@@ -13,6 +13,17 @@ export default function EditProfileDialog({ profile, onClose }: Props) {
   const updateAvatar = useUsers((s) => s.updateAvatar)
   const [nickname, setNickname] = useState(profile?.nickname ?? '')
   const [avatar, setAvatar] = useState(profile?.avatar ?? AVATAR_OPTIONS[0])
+
+  // 该弹窗组件在 ProfileSwitcher 里是常驻挂载的（profile 为 null 时不渲染内容），
+  // 首次打开时用 useState 初始值带入没问题，但再次打开（切换编辑另一个孩子，
+  // 或关闭后重新打开同一个孩子）不会重新触发 useState 初始化，导致表单残留上次编辑的内容。
+  // 这里用 profile?.id 作为依赖，每次弹窗打开时都把表单重置为该孩子当前的昵称/头像。
+  useEffect(() => {
+    if (profile) {
+      setNickname(profile.nickname)
+      setAvatar(profile.avatar)
+    }
+  }, [profile?.id])
 
   if (!profile) return null
 
