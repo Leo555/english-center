@@ -30,8 +30,24 @@ interface GameResultState {
   unlockedNext: boolean
 }
 
+// 首页是应用的根页面，此时再按浏览器/系统返回键，history 栈里下一条往往是进入本应用之前的页面
+// （比如外部referrer，或小程序/App WebView 的宿主页面），会导致意外退出整个应用。
+// 这里在首页挂载时立刻多压入一条相同地址的历史记录：用户按下返回后触发 popstate，
+// 监听器立刻把同一地址重新压回去，相当于把这次“返回”吞掉，页面留在首页不动。
+function useTrapBackOnHome() {
+  useEffect(() => {
+    const trap = () => {
+      window.history.pushState(null, '', window.location.href)
+    }
+    trap()
+    window.addEventListener('popstate', trap)
+    return () => window.removeEventListener('popstate', trap)
+  }, [])
+}
+
 function HomeRoute() {
   const navigate = useNavigate()
+  useTrapBackOnHome()
   return (
     <Home
       onEnterMap={() => navigate('/map')}

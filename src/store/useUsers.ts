@@ -31,6 +31,7 @@ interface UsersState {
   createProfile: (nickname: string, avatar: string, phone: string) => string
   switchUser: (id: string) => void
   renameProfile: (id: string, nickname: string) => void
+  updateAvatar: (id: string, avatar: string) => void
   removeProfile: (id: string) => void
   bindPhone: (id: string, phone: string) => void
   restoreFromCloud: (phone: string, nickname: string, record: CloudProfileRecord) => string
@@ -102,9 +103,32 @@ export const useUsers = create<UsersState>()(
       renameProfile: (id, nickname) => {
         const clean = sanitizeNickname(nickname)
         if (!clean) return
+        const target = get().profiles.find((p) => p.id === id)
+        const oldNickname = target?.nickname
         set((s) => ({
           profiles: s.profiles.map((p) => (p.id === id ? { ...p, nickname: clean } : p)),
         }))
+        if (get().currentUserId === id) {
+          void import('../lib/autoSync').then((m) => m.syncNow())
+        }
+        // 昵称是云端存档/排行榜的 key 之一，改名相当于"换了一个 key"：
+        // 若不清理旧昵称对应的云端记录，排行榜/存档列表会同时残留新旧两条数据。
+        if (target?.phone && oldNickname && oldNickname !== clean) {
+          void import('../lib/cloudSync').then((m) => {
+            m.deleteCloudProfile(target.phone!, oldNickname).catch(() => {})
+            m.deleteLeaderboardEntry(target.phone!, oldNickname).catch(() => {})
+          })
+        }
+      },
+
+      updateAvatar: (id, avatar) => {
+        if (!avatar) return
+        set((s) => ({
+          profiles: s.profiles.map((p) => (p.id === id ? { ...p, avatar } : p)),
+        }))
+        if (get().currentUserId === id) {
+          void import('../lib/autoSync').then((m) => m.syncNow())
+        }
       },
 
       removeProfile: (id) => {

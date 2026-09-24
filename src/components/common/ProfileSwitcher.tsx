@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useUsers } from '../../store/useUsers'
+import { useUsers, type UserProfile } from '../../store/useUsers'
 import { deleteCloudProfile, deleteLeaderboardEntry, fetchCloudProfiles, type CloudProfileRecord } from '../../lib/cloudSync'
 import ConfirmDialog from '../common/ConfirmDialog'
+import EditProfileDialog from '../common/EditProfileDialog'
 import CreateProfile from '../onboarding/CreateProfile'
 import AccountPhoneStep from '../onboarding/AccountPhoneStep'
 
@@ -31,6 +32,8 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
   const [switchingAccount, setSwitchingAccount] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // 待编辑资料（本地孩子），非空时展示 EditProfileDialog
+  const [editingProfile, setEditingProfile] = useState<UserProfile | null>(null)
   // 删除需二次输入完整手机号确认，防止误触删除孩子/云端存档
   const [confirmPhoneInput, setConfirmPhoneInput] = useState('')
 
@@ -159,6 +162,16 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
                 <span className="font-bold text-slate-700">{p.nickname}</span>
                 {p.id === currentUserId && <span className="text-xs text-amber-500 font-bold ml-1">当前</span>}
               </button>
+              <button
+                className="text-slate-300 hover:text-sky-400 text-lg p-1 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setEditingProfile(p)
+                }}
+                aria-label="编辑资料"
+              >
+                ✏️
+              </button>
               {sameAccountProfiles.length > 1 && (
                 <button
                   className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
@@ -268,6 +281,8 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
           className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-center text-sm tracking-widest text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
         />
       </ConfirmDialog>
+
+      <EditProfileDialog profile={editingProfile} onClose={() => setEditingProfile(null)} />
     </div>
   )
 }
