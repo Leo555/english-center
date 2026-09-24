@@ -52,6 +52,22 @@ export async function hdel(key: string, field: string): Promise<void> {
   await redisCommand(['HDEL', key, field])
 }
 
+export async function zadd(key: string, score: number, member: string): Promise<void> {
+  await redisCommand(['ZADD', key, score, member])
+}
+
+export async function zrem(key: string, member: string): Promise<void> {
+  await redisCommand(['ZREM', key, member])
+}
+
+// 从高到低取排名区间 [start, stop]（0-based），返回 [成员, 分数] 列表
+export async function zrevrangeWithScores(key: string, start: number, stop: number): Promise<Array<[string, number]>> {
+  const result = await redisCommand<string[]>(['ZREVRANGE', key, start, stop, 'WITHSCORES'])
+  const pairs: Array<[string, number]> = []
+  for (let i = 0; i < result.length; i += 2) pairs.push([result[i], Number(result[i + 1])])
+  return pairs
+}
+
 // 简单限流：INCR 计数 + 首次命中时设置过期时间，用于防止手机号被暴力枚举遍历
 export async function incrWithExpire(key: string, ttlSeconds: number): Promise<number> {
   const count = await redisCommand<number>(['INCR', key])

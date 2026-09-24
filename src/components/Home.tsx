@@ -12,10 +12,12 @@ export default function Home({
   onEnterMap,
   onEnterReview,
   onEnterVideos,
+  onEnterLeaderboard,
 }: {
   onEnterMap: () => void
   onEnterReview: () => void
   onEnterVideos: () => void
+  onEnterLeaderboard: () => void
 }) {
   const wrongBook = useProgress((s) => s.wrongBook)
   const totalStars = useProgress((s) => s.getTotalStars())
@@ -28,6 +30,13 @@ export default function Home({
   return (
     <div className="flex flex-col items-center gap-6 text-center pt-6">
       <div className="w-full flex justify-end gap-1 -mb-2">
+        <button
+          onClick={onEnterLeaderboard}
+          aria-label="排行榜"
+          className="flex items-center justify-center w-10 h-10 text-2xl leading-none opacity-70 hover:opacity-100 transition-opacity shrink-0"
+        >
+          <span className="leading-none">🏆</span>
+        </button>
         <button
           onClick={() => setSwitcherOpen(true)}
           aria-label="账号设置"

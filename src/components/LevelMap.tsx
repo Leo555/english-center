@@ -19,6 +19,22 @@ function themeGradient(unitIndex: number) {
   return THEME_PALETTE[Math.floor((unitIndex - 1) / 3) % THEME_PALETTE.length]
 }
 
+// 顶部总进度条专用的深色系渐变：level.gradient 是浅色系（300→400），
+// 用在浅灰色 track 上区分度太低（尤其低百分比时几乎看不出色块），
+// 这里按各级别的主题色映射一套更深、更饱和的渐变（500→600），确保与灰色轨道形成明显对比。
+const PROGRESS_GRADIENT: Record<string, string> = {
+  rose: 'from-rose-500 to-pink-600',
+  orange: 'from-orange-500 to-amber-600',
+  lime: 'from-lime-500 to-green-600',
+  teal: 'from-teal-500 to-cyan-600',
+  sky: 'from-sky-500 to-blue-600',
+  violet: 'from-violet-500 to-purple-600',
+}
+
+function progressGradient(color: string) {
+  return PROGRESS_GRADIENT[color] ?? 'from-indigo-500 to-purple-600'
+}
+
 export default function LevelMap({
   levelId,
   onSelectLevel,
@@ -105,10 +121,10 @@ export default function LevelMap({
             已通关 {clearedCount}/{playableUnits.length} 单元 · ⭐ {totalStars}/{maxStars}
           </span>
         </div>
-        <div className="h-2.5 w-full bg-slate-200 rounded-full overflow-hidden">
+        <div className="h-3.5 w-full bg-slate-200 rounded-full overflow-hidden ring-1 ring-slate-300/60">
           <div
-            className={`h-full rounded-full bg-gradient-to-r ${level.gradient} transition-all`}
-            style={{ width: `${progressPct}%` }}
+            className={`h-full rounded-full bg-gradient-to-r ${progressGradient(level.color)} transition-all`}
+            style={{ width: `${Math.max(progressPct, totalStars > 0 ? 3 : 0)}%` }}
           />
         </div>
       </div>
@@ -134,11 +150,16 @@ export default function LevelMap({
               <span className="text-3xl">{unlocked ? logo : '🔒'}</span>
               <span className="text-[10px] px-1.5 text-center leading-tight">{u.title}</span>
               {unlocked && !isDev && (
-                <div className="w-[70%] flex flex-col items-center gap-0.5 mt-0.5">
-                  <div className="h-1.5 w-full bg-white/40 rounded-full overflow-hidden">
-                    <div className="h-full bg-white rounded-full transition-all" style={{ width: `${starPct}%` }} />
+                <div className="w-[78%] flex flex-col items-center gap-0.5 mt-0.5">
+                  <div className="h-1.5 w-full bg-black/25 rounded-full overflow-hidden ring-1 ring-black/10">
+                    <div
+                      className="h-full bg-amber-300 rounded-full transition-all shadow-[0_0_2px_rgba(0,0,0,0.3)]"
+                      style={{ width: `${Math.max(starPct, stars > 0 ? 8 : 0)}%` }}
+                    />
                   </div>
-                  <span className="text-[9px] opacity-90">⭐{stars}/9</span>
+                  <span className="text-[9px] font-bold text-slate-700 bg-white/90 rounded-full px-1.5 leading-tight shadow-sm">
+                    ⭐{stars}/9
+                  </span>
                 </div>
               )}
             </button>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useUsers } from '../../store/useUsers'
-import { deleteCloudProfile, fetchCloudProfiles, type CloudProfileRecord } from '../../lib/cloudSync'
+import { deleteCloudProfile, deleteLeaderboardEntry, fetchCloudProfiles, type CloudProfileRecord } from '../../lib/cloudSync'
 import ConfirmDialog from '../common/ConfirmDialog'
 import CreateProfile from '../onboarding/CreateProfile'
 import AccountPhoneStep from '../onboarding/AccountPhoneStep'
@@ -240,9 +240,11 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
               // 本地删除后，同步删掉该手机号下同名的云端存档，避免下次打开面板又被"找回"出来
               if (target?.phone) {
                 deleteCloudProfile(target.phone, target.nickname).catch(() => {})
+                deleteLeaderboardEntry(target.phone, target.nickname).catch(() => {})
               }
             } else {
               await deleteCloudProfile(currentPhone, pendingDelete.nickname)
+              deleteLeaderboardEntry(currentPhone, pendingDelete.nickname).catch(() => {})
               setCloudOnly((prev) => {
                 const next = { ...prev }
                 delete next[pendingDelete.nickname]

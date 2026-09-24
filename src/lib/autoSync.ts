@@ -3,7 +3,7 @@
 import { useProgress } from '../store/useProgress'
 import { useVideoProgress } from '../store/useVideoProgress'
 import { useUsers } from '../store/useUsers'
-import { pushCloudState, type CloudProgressPayload, type CloudVideoPayload } from './cloudSync'
+import { pushCloudState, pushLeaderboardScore, type CloudProgressPayload, type CloudVideoPayload } from './cloudSync'
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -24,6 +24,11 @@ export async function syncNow(): Promise<void> {
     await pushCloudState(profile.phone, profile.nickname, profile.avatar, progress, video)
   } catch {
     // 网络异常时静默失败，等待下一次改动触发重试，不打断孩子的学习流程
+  }
+  try {
+    await pushLeaderboardScore(profile.phone, profile.nickname, useProgress.getState().getTotalStars())
+  } catch {
+    // 排行榜同步失败不影响学习进度同步，静默失败等待下次重试
   }
 }
 

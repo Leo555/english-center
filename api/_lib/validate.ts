@@ -19,3 +19,18 @@ export function normalizeNickname(input: unknown): string | null {
 export function syncKey(phone: string): string {
   return `powerup:sync:${phone}`
 }
+
+// 排行榜使用 sorted set 存储，member 格式为 `${phone}:${nickname}`。
+// phone 经 normalizePhone 处理后只包含数字，因此按首个 ':' 拆分即可安全还原 phone/nickname，
+// 不受 nickname 中可能出现的 ':' 字符影响。
+export const LEADERBOARD_KEY = 'powerup:leaderboard'
+
+export function leaderboardMember(phone: string, nickname: string): string {
+  return `${phone}:${nickname}`
+}
+
+export function parseLeaderboardMember(member: string): { phone: string; nickname: string } {
+  const sep = member.indexOf(':')
+  if (sep < 0) return { phone: '', nickname: member }
+  return { phone: member.slice(0, sep), nickname: member.slice(sep + 1) }
+}

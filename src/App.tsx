@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import type { GameType } from './types'
+import { GAME_META } from './types'
 import { findLevel, findUnit, getAllUnits } from './data/levels'
 import { findVideo } from './data/videos'
 import { useProgress } from './store/useProgress'
 import { useUsers } from './store/useUsers'
 import { hasStoredProgress, VIDEO_PROGRESS_STORAGE_PREFIX } from './store/userSession'
 import Home from './components/Home'
+import Leaderboard from './components/Leaderboard'
 import LevelMap from './components/LevelMap'
 import VocabList from './components/VocabList'
 import UnitHub from './components/UnitHub'
@@ -35,8 +37,14 @@ function HomeRoute() {
       onEnterMap={() => navigate('/map')}
       onEnterReview={() => navigate('/review')}
       onEnterVideos={() => navigate('/videos')}
+      onEnterLeaderboard={() => navigate('/leaderboard')}
     />
   )
+}
+
+function LeaderboardRoute() {
+  const navigate = useNavigate()
+  return <Leaderboard onBack={() => navigate('/')} />
 }
 
 function LevelMapRoute() {
@@ -96,18 +104,28 @@ function GameRoute() {
   const { unitId = '', gameType = '' } = useParams()
   const recordAnswer = useProgress((s) => s.recordAnswer)
   const setGameStars = useProgress((s) => s.setGameStars)
-  const isUnitUnlocked = useProgress((s) => s.isUnitUnlocked)
   const [gameResult, setGameResult] = useState<GameResultState | null>(null)
+
+  // 同一路由模式（/unit/:unitId/game/:gameType）在点击「下一关」时只是切换参数，
+  // React Router 会复用同一个组件实例而不会重新挂载，导致上一关的结算态残留，
+  // 点击「下一关」后页面看起来卡在结算页、进不去新的闯关。这里在 unitId/gameType
+  // 变化时主动清空结算态，保证每次进入新玩法都是干净的 GamePlayer。
+  useEffect(() => {
+    setGameResult(null)
+  }, [unitId, gameType])
 
   const unit = findUnit(unitId)
   const isValidGameType = gameType === 'picture' || gameType === 'match' || gameType === 'elim'
   if (!unit || !isValidGameType) return <Navigate to="/map" replace />
   const gt = gameType as GameType
 
-  // 「下一关」按钮跳转目标：下一个单元，且必须已解锁（跨级/顺序解锁限制）且非占位开发中单元
+  // 「下一关」按钮：指同一单元内的下一个玩法（图形选择→连线配对→消消乐），三个玩法都做完就不再展示
+  const gameTypes = Object.keys(GAME_META) as GameType[]
+  const nextGameType = gameTypes[gameTypes.indexOf(gt) + 1]
+
+  // congrats 提示（解锁下一单元）仍需判断下一个真实单元是否刚好被解锁
   const allUnits = getAllUnits()
   const nextUnit = allUnits[allUnits.findIndex((u) => u.id === unit.id) + 1]
-  const nextUnitPlayable = !!nextUnit && nextUnit.words.length > 0 && isUnitUnlocked(nextUnit.id)
 
   if (gameResult) {
     return (
@@ -119,8 +137,8 @@ function GameRoute() {
         onRetry={() => setGameResult(null)}
         onBack={() => navigate(`/unit/${unitId}`)}
         backLabel="返回单元"
-        onNext={nextUnitPlayable ? () => navigate(`/unit/${nextUnit.id}`) : undefined}
-        nextLabel={`下一关：${nextUnit?.title ?? ''} ➡️`}
+        onNext={nextGameType ? () => navigate(`/unit/${unitId}/game/${nextGameType}`) : undefined}
+        nextLabel={nextGameType ? `下一关：${GAME_META[nextGameType].name} ➡️` : undefined}
       />
     )
   }
@@ -244,6 +262,7 @@ export default function App() {
             <Route path="/unit/:unitId/learn" element={<LearnRoute />} />
             <Route path="/unit/:unitId/game/:gameType" element={<GameRoute />} />
             <Route path="/review" element={<ReviewRoute />} />
+            <Route path="/leaderboard" element={<LeaderboardRoute />} />
             <Route path="/videos" element={<VideoZoneRoute />} />
             <Route path="/videos/:videoId" element={<VideoPlayerRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
