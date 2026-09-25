@@ -56,13 +56,16 @@ function sanitizeNickname(nickname: string): string {
 // 注意：必须先判断该用户是否已有存档，再决定 reset 还是 rehydrate ——
 // 如果对已有存档的用户直接 resetProgress()，会把内存中的空状态写回其存档（因为
 // getCurrentUserId() 此时已指向该用户），导致其历史进度被空数据覆盖丢失。
-function reloadProgressForUser(userId: string | null) {
-  if (!userId) return
+//
+// 返回 Promise：rehydrate 是异步的，调用方（如 switchUser 补推同步）若需要在"进度已切换为
+// 新用户"之后才读取 useProgress 状态，必须等这个 Promise resolve，否则会读到切换前的旧数据。
+function reloadProgressForUser(userId: string | null): Promise<void> {
+  if (!userId) return Promise.resolve()
   if (hasStoredProgress(userId)) {
-    void useProgress.persist.rehydrate()
-  } else {
-    useProgress.getState().resetProgress()
+    return useProgress.persist.rehydrate() ?? Promise.resolve()
   }
+  useProgress.getState().resetProgress()
+  return Promise.resolve()
 }
 
 export const useUsers = create<UsersState>()(
@@ -97,7 +100,10 @@ export const useUsers = create<UsersState>()(
         if (!get().profiles.some((p) => p.id === id)) return
         setCurrentUserId(id)
         set({ currentUserId: id })
-        reloadProgressForUser(id)
+        // 切换到的孩子如果最近没有产生新进度变化，不会触发 autoSync 的 subscribe 回调，
+        // 存量星数就可能一直没推送到云端排行榜。这里等进度 rehydrate 完成后补一次同步，
+        // 确保读到的是新用户的进度而不是切换前残留的旧数据。
+        void reloadProgressForUser(id).then(() => import('../lib/autoSync')).then((m) => m.syncNow())
       },
 
       renameProfile: (id, nickname) => {

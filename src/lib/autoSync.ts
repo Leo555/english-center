@@ -49,6 +49,13 @@ export function initAutoSync(): void {
   if (inited) return
   inited = true
 
+  // 启动时立即补推一次：排行榜/云存档功能是后补上的，很多老用户在此之前已经积累了大量
+  // 存量进度（星星），如果最近没有产生"新的"进度变化（没触发 subscribe），也没有可靠触发
+  // beforeunload/visibilitychange（部分手机浏览器、微信内嵌 WebView 并不总会触发），
+  // 这份存量数据就永远不会被推到云端 —— 表现为"本地进度条明明有分数，排行榜上却查不到"。
+  // 这里在每次应用启动时无条件同步一次，确保只要打开过一次 App 就一定会补推最新本地数据。
+  void syncNow()
+
   useProgress.subscribe(scheduleSync)
   useVideoProgress.subscribe(scheduleSync)
 
