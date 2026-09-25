@@ -52,8 +52,13 @@ export async function hdel(key: string, field: string): Promise<void> {
   await redisCommand(['HDEL', key, field])
 }
 
-export async function zadd(key: string, score: number, member: string): Promise<void> {
-  await redisCommand(['ZADD', key, score, member])
+// 排行榜分数只应单向递增：同一个孩子可能在多台设备上玩（如爸爸手机 + 平板），
+// 每台设备打开 App 时都会无条件补推一次"本地"总星数（见 autoSync.ts 的启动补推逻辑）。
+// 如果某台设备很久没打开、本地进度落后于云端最新进度，用普通 ZADD 会用旧的低分覆盖掉
+// 排行榜上已经更高的分数，导致排行榜显示的分数比孩子实际进度（本地进度条）更低、对不上。
+// 加 GT 选项后，只有新分数比已存储分数更高时才会更新；新成员（首次上榜）不受影响，仍会正常写入。
+export async function zaddGT(key: string, score: number, member: string): Promise<void> {
+  await redisCommand(['ZADD', key, 'GT', score, member])
 }
 
 export async function zrem(key: string, member: string): Promise<void> {

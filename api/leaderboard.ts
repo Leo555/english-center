@@ -2,7 +2,7 @@
 // GET    /api/leaderboard?limit=xxx                    -> 返回按分数从高到低的排行榜（手机号仅返回后 5 位）
 // PUT    /api/leaderboard { phone, nickname, score }    -> 更新/写入某个孩子的分数
 // DELETE /api/leaderboard?phone=xxx&nickname=yyy        -> 删除某个孩子的排行榜记录（配合删除孩子资料）
-import { isRedisConfigured, zadd, zrem, zrevrangeWithScores } from './_lib/redis.js'
+import { isRedisConfigured, zaddGT, zrem, zrevrangeWithScores } from './_lib/redis.js'
 import {
   LEADERBOARD_KEY,
   leaderboardMember,
@@ -62,7 +62,7 @@ async function handlePut(req: ApiRequest, res: ApiResponse) {
     res.status(400).json({ error: '参数不正确' })
     return
   }
-  await zadd(LEADERBOARD_KEY, score, leaderboardMember(phone, nickname))
+  await zaddGT(LEADERBOARD_KEY, score, leaderboardMember(phone, nickname))
   res.status(200).json({ ok: true })
 }
 
