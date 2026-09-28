@@ -43,6 +43,30 @@ export function hasStoredProgress(userId: string): boolean {
   }
 }
 
+// 直接读取"某个本地用户 id"当前持久化存储里的总星数，不经过 zustand store。
+// 用途：ProfileSwitcher 需要拿"当前设备上每个孩子本地已有的星数"跟云端存档比较，
+// 但 zustand 的 useProgress store 内存里只保存"当前激活用户"的数据，切换用户才会 rehydrate，
+// 因此非当前用户的进度只能像这样直接读 localStorage 原始 JSON 来计算，不影响 store 状态。
+export function getStoredTotalStars(userId: string): number {
+  try {
+    const raw = localStorage.getItem(`${PROGRESS_STORAGE_PREFIX}:${userId}`)
+    if (!raw) return 0
+    const parsed = JSON.parse(raw) as {
+      state?: { unitProgress?: Record<string, { stars?: Partial<Record<string, number>> }> }
+    }
+    const unitProgress = parsed?.state?.unitProgress ?? {}
+    let total = 0
+    for (const unit of Object.values(unitProgress)) {
+      for (const value of Object.values(unit?.stars ?? {})) {
+        total += value ?? 0
+      }
+    }
+    return total
+  } catch {
+    return 0
+  }
+}
+
 // 兼容旧版本（无多用户功能前）遗留的全局进度数据：
 // 第一次创建账号时，把这份"匿名"进度迁移给新建的第一个用户，避免历史数据丢失。
 export function migrateLegacyProgressIfNeeded(userId: string): void {

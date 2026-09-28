@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useUsers, type UserProfile } from '../../store/useUsers'
-import { deleteCloudProfile, deleteLeaderboardEntry, fetchCloudProfiles, type CloudProfileRecord } from '../../lib/cloudSync'
+import { deleteCloudProfile, deleteLeaderboardEntry, fetchCloudProfiles, type CloudProfileRecord, type CloudProgressPayload } from '../../lib/cloudSync'
+import { getStoredTotalStars } from '../../store/userSession'
 import ConfirmDialog from '../common/ConfirmDialog'
 import EditProfileDialog from '../common/EditProfileDialog'
 import CreateProfile from '../onboarding/CreateProfile'
 import AccountPhoneStep from '../onboarding/AccountPhoneStep'
+
+function totalStarsFromCloudProgress(progress: CloudProgressPayload | undefined): number {
+  if (!progress?.unitProgress) return 0
+  return Object.values(progress.unitProgress).reduce(
+    (sum, p) => sum + Object.values(p?.stars ?? {}).reduce((a, b) => a + (Number(b) || 0), 0),
+    0,
+  )
+}
 
 interface Props {
   open: boolean
@@ -44,6 +53,11 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
   // 云端下该账号手机号下、但本机还没有本地资料的孩子（比如在别的设备上创建的），
   // 仅用于在"切换孩子"面板里展示 + 一键找回，不影响本地已有资料的展示。
   const [cloudOnly, setCloudOnly] = useState<Record<string, CloudProfileRecord>>({})
+  // 本地已有同名孩子，但云端存档的总星数比本机当前本地存的更高——
+  // 说明这个孩子还在别的设备上玩过、进度领先，本机是"落后"的那一台。
+  // 历史 bug：之前只要本地已存在同名昵称就整条隐藏云端记录，导致这种"本机进度落后"的情况
+  // 永远没有入口能同步回来，本机首页显示的星数会一直比排行榜/云端的真实进度低，看起来"对不上"。
+  const [cloudUpgrades, setCloudUpgrades] = useState<Record<string, CloudProfileRecord>>({})
   const [restoringNickname, setRestoringNickname] = useState<string | null>(null)
 
   const currentProfile = profiles.find((p) => p.id === currentUserId)
@@ -54,10 +68,12 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
 
   // 面板打开时，顺便查一次云端该手机号下实际有哪些孩子——
   // 本地列表只反映"这台设备曾创建过的孩子"，同账号在别的设备上创建的孩子本地是看不到的，
-  // 这里补一次云端查询，把本地没有的昵称也列出来，点击即可一键找回到本机。
+  // 这里补一次云端查询，把本地没有的昵称也列出来，点击即可一键找回到本机；
+  // 同时对本地已存在的同名孩子，比较云端与本地的总星数，云端更高时标记为"可同步升级"。
   useEffect(() => {
     if (!open || !currentPhone) {
       setCloudOnly({})
+      setCloudUpgrades({})
       return
     }
     let cancelled = false
@@ -65,14 +81,27 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
       .then((result) => {
         if (cancelled) return
         const extra: Record<string, CloudProfileRecord> = {}
+        const upgrades: Record<string, CloudProfileRecord> = {}
         for (const [nickname, record] of Object.entries(result)) {
-          if (!localNicknames.has(nickname)) extra[nickname] = record
+          if (!localNicknames.has(nickname)) {
+            extra[nickname] = record
+            continue
+          }
+          const localProfile = sameAccountProfiles.find((p) => p.nickname === nickname)
+          if (!localProfile) continue
+          const cloudTotal = totalStarsFromCloudProgress(record.progress)
+          const localTotal = getStoredTotalStars(localProfile.id)
+          if (cloudTotal > localTotal) upgrades[nickname] = record
         }
         setCloudOnly(extra)
+        setCloudUpgrades(upgrades)
       })
       .catch(() => {
         // 云端未配置或网络异常：静默忽略，不影响本地列表的正常展示
-        if (!cancelled) setCloudOnly({})
+        if (!cancelled) {
+          setCloudOnly({})
+          setCloudUpgrades({})
+        }
       })
     return () => {
       cancelled = true
@@ -144,45 +173,73 @@ export default function ProfileSwitcher({ open, onClose }: Props) {
           当前账号 {formatPhone(currentPhone)}
         </div>
         <div className="flex flex-col gap-2">
-          {sameAccountProfiles.map((p) => (
-            <div
-              key={p.id}
-              className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors ${
-                p.id === currentUserId ? 'bg-amber-100 ring-2 ring-amber-300' : 'bg-slate-50 hover:bg-slate-100'
-              }`}
-            >
-              <button
-                className="flex items-center gap-3 flex-1 text-left"
-                onClick={() => {
-                  switchUser(p.id)
-                  onClose()
-                }}
-              >
-                <span className="text-2xl">{p.avatar}</span>
-                <span className="font-bold text-slate-700">{p.nickname}</span>
-                {p.id === currentUserId && <span className="text-xs text-amber-500 font-bold ml-1">当前</span>}
-              </button>
-              <button
-                className="text-slate-300 hover:text-sky-400 text-lg p-1 shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setEditingProfile(p)
-                }}
-                aria-label="编辑资料"
-              >
-                ✏️
-              </button>
-              {sameAccountProfiles.length > 1 && (
-                <button
-                  className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
-                  onClick={() => openDeleteConfirm({ type: 'local', id: p.id })}
-                  aria-label="删除孩子"
+          {sameAccountProfiles.map((p) => {
+            const upgrade = cloudUpgrades[p.nickname]
+            return (
+              <div key={p.id} className="flex flex-col gap-1.5">
+                <div
+                  className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors ${
+                    p.id === currentUserId ? 'bg-amber-100 ring-2 ring-amber-300' : 'bg-slate-50 hover:bg-slate-100'
+                  }`}
                 >
-                  🗑️
-                </button>
-              )}
-            </div>
-          ))}
+                  <button
+                    className="flex items-center gap-3 flex-1 text-left"
+                    onClick={() => {
+                      switchUser(p.id)
+                      onClose()
+                    }}
+                  >
+                    <span className="text-2xl">{p.avatar}</span>
+                    <span className="font-bold text-slate-700">{p.nickname}</span>
+                    {p.id === currentUserId && <span className="text-xs text-amber-500 font-bold ml-1">当前</span>}
+                  </button>
+                  <button
+                    className="text-slate-300 hover:text-sky-400 text-lg p-1 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditingProfile(p)
+                    }}
+                    aria-label="编辑资料"
+                  >
+                    ✏️
+                  </button>
+                  {sameAccountProfiles.length > 1 && (
+                    <button
+                      className="text-slate-300 hover:text-rose-400 text-lg p-1 shrink-0"
+                      onClick={() => openDeleteConfirm({ type: 'local', id: p.id })}
+                      aria-label="删除孩子"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+                {upgrade && (
+                  <button
+                    disabled={restoringNickname !== null}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 px-3 py-2 text-xs font-bold text-sky-500 transition-colors disabled:opacity-50"
+                    onClick={async () => {
+                      if (!currentPhone) return
+                      setRestoringNickname(p.nickname)
+                      try {
+                        restoreFromCloud(currentPhone, p.nickname, upgrade)
+                        setCloudUpgrades((prev) => {
+                          const next = { ...prev }
+                          delete next[p.nickname]
+                          return next
+                        })
+                      } finally {
+                        setRestoringNickname(null)
+                      }
+                    }}
+                  >
+                    {restoringNickname === p.nickname
+                      ? '同步中…'
+                      : `☁️ 发现云端有更多进度（${totalStarsFromCloudProgress(upgrade.progress)} 星），点击同步到本机`}
+                  </button>
+                )}
+              </div>
+            )
+          })}
           {Object.entries(cloudOnly).map(([nickname, record]) => (
             <div
               key={nickname}
