@@ -44,6 +44,11 @@ export async function hgetall(key: string): Promise<Record<string, string>> {
   return obj
 }
 
+export async function hget(key: string, field: string): Promise<string | null> {
+  const result = await redisCommand<string | null>(['HGET', key, field])
+  return result ?? null
+}
+
 export async function hset(key: string, field: string, value: string): Promise<void> {
   await redisCommand(['HSET', key, field, value])
 }
