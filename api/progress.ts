@@ -2,8 +2,8 @@
 // GET    /api/progress?phone=xxx        -> 返回该手机号下所有昵称的存档（供换设备后选择昵称找回进度）
 // PUT    /api/progress { phone, nickname, avatar, progress, video } -> 写入/覆盖该昵称的存档
 // DELETE /api/progress?phone=xxx&nickname=yyy -> 删除该手机号下指定昵称的云端存档
-import { hdel, hget, hgetall, hset, incrWithExpire, isRedisConfigured } from './_lib/redis.js'
-import { normalizeNickname, normalizePhone, syncKey } from './_lib/validate.js'
+import { hdel, hget, hgetall, hset, incrWithExpire, isRedisConfigured, zadd, zrem } from './_lib/redis.js'
+import { LEADERBOARD_KEY, leaderboardMember, normalizeNickname, normalizePhone, syncKey } from './_lib/validate.js'
 import type { ApiRequest, ApiResponse } from './_lib/http.js'
 
 interface CloudRecord {
@@ -75,6 +75,18 @@ function mergeVideo(prev: unknown, next: unknown): Json {
   return {
     watchedVideos: { ...asObject(asObject(prev).watchedVideos), ...asObject(asObject(next).watchedVideos) },
   }
+}
+
+// 从一份进度存档里算出"总星数"（与前端 useProgress.getTotalStars() 口径一致：
+// 遍历每个单元的每种玩法星数求和）。排行榜分数必须由它推导，才能与首页"总星数"永远一致。
+function totalStarsOf(progress: unknown): number {
+  const units = asObject(asObject(progress).unitProgress)
+  let sum = 0
+  for (const unit of Object.values(units)) {
+    const stars = asObject(asObject(unit).stars)
+    for (const s of Object.values(stars)) sum += asNumber(s)
+  }
+  return sum
 }
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -154,6 +166,15 @@ async function handlePut(req: ApiRequest, res: ApiResponse) {
     : incoming
 
   await hset(key, nickname, JSON.stringify(record))
+  // 排行榜分数必须以"合并后的云端进度总星数"为准，否则会与首页"总星数"对不上：
+  // 进度推送与排行榜推送是两条独立通道（见 autoSync.ts），若进度推送失败/静默而排行榜推送成功，
+  // 或某台设备重置过进度，排行榜会卡在一个比真实进度更高的旧值，而 GT 选项又无法让它回落。
+  // 这里在进度写入后直接用真实总星数 ZADD，保证排行榜与首页永远一致（必要时允许回落）。
+  try {
+    await zadd(LEADERBOARD_KEY, totalStarsOf(record.progress), leaderboardMember(phone, nickname))
+  } catch {
+    // 排行榜更新失败不影响进度本身的保存
+  }
   res.status(200).json({ ok: true, updatedAt: record.updatedAt })
 }
 
@@ -167,6 +188,12 @@ async function handleDelete(req: ApiRequest, res: ApiResponse) {
     return
   }
   await hdel(syncKey(phone), nickname)
+  // 删除云端存档时同步移除排行榜记录，保持两端一致
+  try {
+    await zrem(LEADERBOARD_KEY, leaderboardMember(phone, nickname))
+  } catch {
+    // 排行榜清理失败不影响存档删除本身
+  }
   res.status(200).json({ ok: true })
 }
 

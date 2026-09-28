@@ -12,7 +12,6 @@ import {
 import {
   fetchCloudProfiles,
   pushCloudState,
-  pushLeaderboardScore,
   type CloudProfileRecord,
   type CloudProgressPayload,
   type CloudVideoPayload,
@@ -35,14 +34,11 @@ export async function syncNow(): Promise<void> {
   if (!profile?.phone) return
   const { progress, video } = collectPayload()
   try {
+    // 排行榜分数由 /api/progress 写入云端进度后统一同步（见 progress.ts），
+    // 这里只需推送进度即可，避免两条通道各自推送导致排行榜与首页"总星数"对不上。
     await pushCloudState(profile.phone, profile.nickname, profile.avatar, progress, video)
   } catch {
     // 网络异常时静默失败，等待下一次改动触发重试，不打断孩子的学习流程
-  }
-  try {
-    await pushLeaderboardScore(profile.phone, profile.nickname, useProgress.getState().getTotalStars())
-  } catch {
-    // 排行榜同步失败不影响学习进度同步，静默失败等待下次重试
   }
 }
 

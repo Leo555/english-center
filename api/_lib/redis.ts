@@ -66,6 +66,14 @@ export async function zaddGT(key: string, score: number, member: string): Promis
   await redisCommand(['ZADD', key, 'GT', score, member])
 }
 
+// 普通 ZADD（不带 GT）：直接用给定分数覆盖该成员的分数。
+// 仅用于"分数由权威的云端进度推导"的场景（见 progress.ts 写入后同步排行榜），
+// 此时分数来自合并后的真实进度总星数，应当如实反映当前成绩——包括比旧值更低，
+// 否则排行榜会卡在一个比真实进度更高的旧值、永久与首页"总星数"对不上。
+export async function zadd(key: string, score: number, member: string): Promise<void> {
+  await redisCommand(['ZADD', key, score, member])
+}
+
 export async function zrem(key: string, member: string): Promise<void> {
   await redisCommand(['ZREM', key, member])
 }
