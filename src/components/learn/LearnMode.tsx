@@ -19,17 +19,27 @@ export default function LearnMode({
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [finished, setFinished] = useState(false)
+  // 例句是否朗读完毕：进入读例句模式后先置 false，句子读完才置 true，
+  // 期间"下一个"按钮禁用，确保孩子先听完例句发音再翻下一词。
+  const [sentenceReady, setSentenceReady] = useState(false)
 
   const word = unit.words[index]
 
   // 进入新单词卡片、或翻卡看例句时，自动朗读一次，无需孩子手动点击
   useEffect(() => {
     if (finished || !word) return
-    speak(flipped ? word.example.en : word.en)
+    if (flipped) setSentenceReady(false)
+    speak(flipped ? word.example.en : word.en, 'en-US', flipped ? () => setSentenceReady(true) : undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, flipped, finished])
 
+  // 读完单词卡后先进入"读例句"模式（自动朗读例句），再点一次才翻到下一个单词；
+  // 这样每个单词都会先认词、再听一遍例句发音，让孩子多听发音。
   function next() {
+    if (!flipped) {
+      setFlipped(true)
+      return
+    }
     if (index + 1 >= unit.words.length) {
       setFinished(true)
       onDone()
@@ -38,10 +48,15 @@ export default function LearnMode({
       setFlipped(false)
     }
   }
+  // 与 next 对称的逆操作：例句态 -> 回到单词卡；单词卡态 -> 上一个单词的例句态
   function prev() {
+    if (flipped) {
+      setFlipped(false)
+      return
+    }
     if (index === 0) return
     setIndex((i) => i - 1)
-    setFlipped(false)
+    setFlipped(true)
   }
 
   if (finished) {
@@ -90,7 +105,9 @@ export default function LearnMode({
       <button
         onClick={(e) => {
           e.stopPropagation()
-          speak(flipped ? word.example.en : word.en)
+          const text = flipped ? word.example.en : word.en
+          // 在读例句态手动重听例句时，播完也视为"已读"，解锁"下一个"
+          speak(text, 'en-US', flipped ? () => setSentenceReady(true) : undefined)
         }}
         className="text-2xl bg-sky-100 hover:bg-sky-200 rounded-full w-14 h-14 flex items-center justify-center shadow"
         aria-label="发音"
@@ -99,11 +116,21 @@ export default function LearnMode({
       </button>
 
       <div className="flex gap-3 w-full">
-        <Button variant="ghost" onClick={prev} disabled={index === 0} className="flex-1">
+        <Button variant="ghost" onClick={prev} disabled={index === 0 && !flipped} className="flex-1">
           ⬅️ 上一个
         </Button>
-        <Button variant="primary" onClick={next} className="flex-1">
-          {index + 1 >= unit.words.length ? '完成学习 🎉' : '下一个 ➡️'}
+        <Button
+          variant="primary"
+          onClick={next}
+          // 读例句模式下，必须等例句朗读完毕才能翻到下一个单词
+          disabled={flipped && !sentenceReady}
+          className="flex-1"
+        >
+          {flipped && !sentenceReady
+            ? '🔊 听例句…'
+            : flipped && index + 1 >= unit.words.length
+              ? '完成学习 🎉'
+              : '下一个 ➡️'}
         </Button>
       </div>
     </div>

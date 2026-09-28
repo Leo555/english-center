@@ -27,7 +27,7 @@ export function onSpeechUnsupported(listener: Unsupported): () => void {
 
 let currentAudio: HTMLAudioElement | null = null
 
-function playLocalAudio(url: string): boolean {
+function playLocalAudio(url: string, onEnd?: () => void): boolean {
   try {
     if (currentAudio) {
       currentAudio.pause()
@@ -35,28 +35,39 @@ function playLocalAudio(url: string): boolean {
     }
     const audio = new Audio(url)
     currentAudio = audio
+    // 朗读结束后回调，供调用方判断"句子是否已读完"（如学习页用来解锁"下一个"）
+    audio.onended = () => onEnd?.()
     // play() 返回的 Promise 在部分浏览器上可能被拒绝（如被自动播放策略拦截），
-    // 这里静默捕获，不影响主流程；用户点击触发的调用一般不会被拦截。
-    audio.play().catch(() => {})
+    // 这里静默捕获，并在失败时也触发 onEnd，避免把"下一个"永久锁死；
+    // 用户点击触发的调用一般不会被拦截。
+    audio.play().catch(() => onEnd?.())
     return true
   } catch {
+    onEnd?.()
     return false
   }
 }
 
-export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US') {
+// onEnd: 朗读（自然）结束后的回调。本地音频在 ended 时触发；浏览器 TTS 在
+// utterance.onend 时触发；若根本无法朗读（无音频文件且无 TTS 能力），会立即触发，
+// 以免调用方（如学习页"读完句子才能点下一个"的约束）把按钮永久锁死。
+export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US', onEnd?: () => void) {
   const trimmed = text.trim()
-  if (!trimmed) return
+  if (!trimmed) {
+    onEnd?.()
+    return
+  }
 
   // 1. 优先使用本地预生成音频（目前覆盖 L1/L2 词库的单词与例句）
   if (lang === 'en-US') {
     const url = AUDIO_MANIFEST[trimmed.toLowerCase()]
-    if (url && playLocalAudio(url)) return
+    if (url && playLocalAudio(url, onEnd)) return
   }
 
   // 2. 回退到浏览器内置 Web Speech API
   if (!canSpeak()) {
     unsupportedListeners.forEach((fn) => fn())
+    onEnd?.()
     return
   }
   try {
@@ -66,11 +77,13 @@ export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US') {
     // 单词稍快更干脆，句子放慢一点便于孩子跟读听清每个音节
     u.rate = text.trim().includes(' ') ? 0.8 : 0.9
     u.pitch = 1.0
+    if (onEnd) u.onend = onEnd
     // 注意：故意不设置 u.voice。显式指定 voice 对象在部分国产安卓浏览器
     // （如 vivo）上会导致 speak() 静默失败，不指定则由浏览器按 lang 自动
     // 选择系统默认语音，兼容性更好、更稳定。
     window.speechSynthesis.speak(u)
   } catch {
     // 静默失败：部分环境/浏览器不支持语音合成
+    onEnd?.()
   }
 }
