@@ -93,3 +93,17 @@ export function seedUserStorage(storagePrefix: string, userId: string, state: un
     // 忽略隐私模式等 localStorage 不可用场景
   }
 }
+
+// 读取某个用户持久化存储里的 state 段（zustand persist 结构为 `{ state, version }`），
+// 不经过 zustand store 内存。用途：在"把云端进度合并进本地"前后直接读写 localStorage 原始数据，
+// 避免依赖 store rehydrate 的时序（合并时必须先读出本地当前值，再与云端取较大值写回）。
+export function readStoredState<T = unknown>(storagePrefix: string, userId: string): T | null {
+  try {
+    const raw = localStorage.getItem(`${storagePrefix}:${userId}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { state?: T }
+    return parsed?.state ?? null
+  } catch {
+    return null
+  }
+}
