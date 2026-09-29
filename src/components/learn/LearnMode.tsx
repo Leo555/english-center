@@ -19,17 +19,53 @@ export default function LearnMode({
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [finished, setFinished] = useState(false)
+  // 朗读期间短暂锁定"下一个"：读单词锁 1 秒、读例句锁 2 秒。
+  // 用固定时长而不是等音频播完，避免音频缺失/被拦截时按钮一直不可用
+  // （之前那种"像卡住"的体验）。
+  const [nextLocked, setNextLocked] = useState(false)
 
   const word = unit.words[index]
 
-  // 进入新单词卡片、或翻卡看例句时，自动朗读一次，无需孩子手动点击
+  // 进入单词卡：自动朗读单词两遍，并锁"下一个" 1 秒；
+  // 翻到例句：自动朗读例句一遍，并锁"下一个" 2 秒。
   useEffect(() => {
     if (finished || !word) return
-    speak(flipped ? word.example.en : word.en)
+    let cancelled = false
+    let repeatTimer: number | undefined
+
+    setNextLocked(true)
+    const unlockTimer = window.setTimeout(() => {
+      if (!cancelled) setNextLocked(false)
+    }, flipped ? 2000 : 1000)
+
+    if (flipped) {
+      speak(word.example.en)
+    } else {
+      // 单词读两遍：第一遍播完停顿一下再播第二遍。
+      // 注意不能连着调两次 speak——内部会 cancel 上一次，结果只响一遍。
+      speak(word.en, 'en-US', () => {
+        if (cancelled) return
+        repeatTimer = window.setTimeout(() => {
+          if (cancelled) return
+          speak(word.en)
+        }, 400)
+      })
+    }
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(unlockTimer)
+      if (repeatTimer) window.clearTimeout(repeatTimer)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, flipped, finished])
 
+  // 两步式：先认词 -> 点"下一个"进入读例句 -> 再点一次才翻到下一个单词
   function next() {
+    if (!flipped) {
+      setFlipped(true)
+      return
+    }
     if (index + 1 >= unit.words.length) {
       setFinished(true)
       onDone()
@@ -38,10 +74,15 @@ export default function LearnMode({
       setFlipped(false)
     }
   }
+  // 与 next 对称：例句态 -> 回到单词卡；单词卡态 -> 上一个单词的例句态
   function prev() {
+    if (flipped) {
+      setFlipped(false)
+      return
+    }
     if (index === 0) return
     setIndex((i) => i - 1)
-    setFlipped(false)
+    setFlipped(true)
   }
 
   if (finished) {
@@ -99,11 +140,17 @@ export default function LearnMode({
       </button>
 
       <div className="flex gap-3 w-full">
-        <Button variant="ghost" onClick={prev} disabled={index === 0} className="flex-1">
+        <Button variant="ghost" onClick={prev} disabled={index === 0 && !flipped} className="flex-1">
           ⬅️ 上一个
         </Button>
-        <Button variant="primary" onClick={next} className="flex-1">
-          {index + 1 >= unit.words.length ? '完成学习 🎉' : '下一个 ➡️'}
+        <Button variant="primary" onClick={next} disabled={nextLocked} className="flex-1">
+          {nextLocked
+            ? flipped
+              ? '🔊 听例句…'
+              : '🔊 听单词…'
+            : flipped && index + 1 >= unit.words.length
+              ? '完成学习 🎉'
+              : '下一个 ➡️'}
         </Button>
       </div>
     </div>

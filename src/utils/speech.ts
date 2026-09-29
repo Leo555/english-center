@@ -27,7 +27,7 @@ export function onSpeechUnsupported(listener: Unsupported): () => void {
 
 let currentAudio: HTMLAudioElement | null = null
 
-function playLocalAudio(url: string): boolean {
+function playLocalAudio(url: string, onEnd?: () => void): boolean {
   try {
     if (currentAudio) {
       currentAudio.pause()
@@ -35,28 +35,38 @@ function playLocalAudio(url: string): boolean {
     }
     const audio = new Audio(url)
     currentAudio = audio
+    // 播放结束回调：供调用方串联多次朗读（如"单词读两遍"）
+    audio.onended = () => onEnd?.()
     // play() 返回的 Promise 在部分浏览器上可能被拒绝（如被自动播放策略拦截），
-    // 这里静默捕获，不影响主流程；用户点击触发的调用一般不会被拦截。
-    audio.play().catch(() => {})
+    // 这里静默捕获；失败时同样触发 onEnd，避免调用方的后续朗读一直悬着不播。
+    audio.play().catch(() => onEnd?.())
     return true
   } catch {
+    onEnd?.()
     return false
   }
 }
 
-export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US') {
+// onEnd: 本次朗读结束后的回调（本地音频 ended / 浏览器 TTS onend）。
+// 注意：它只用于"串联朗读"，不应用于卡住界面交互——等待音频结束再解锁按钮
+// 在弱网或音频缺失时会让用户以为页面卡死。
+export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US', onEnd?: () => void) {
   const trimmed = text.trim()
-  if (!trimmed) return
+  if (!trimmed) {
+    onEnd?.()
+    return
+  }
 
   // 1. 优先使用本地预生成音频（目前覆盖 L1/L2 词库的单词与例句）
   if (lang === 'en-US') {
     const url = AUDIO_MANIFEST[trimmed.toLowerCase()]
-    if (url && playLocalAudio(url)) return
+    if (url && playLocalAudio(url, onEnd)) return
   }
 
   // 2. 回退到浏览器内置 Web Speech API
   if (!canSpeak()) {
     unsupportedListeners.forEach((fn) => fn())
+    onEnd?.()
     return
   }
   try {
@@ -66,11 +76,13 @@ export function speak(text: string, lang: 'en-US' | 'zh-CN' = 'en-US') {
     // 单词稍快更干脆，句子放慢一点便于孩子跟读听清每个音节
     u.rate = text.trim().includes(' ') ? 0.8 : 0.9
     u.pitch = 1.0
+    if (onEnd) u.onend = onEnd
     // 注意：故意不设置 u.voice。显式指定 voice 对象在部分国产安卓浏览器
     // （如 vivo）上会导致 speak() 静默失败，不指定则由浏览器按 lang 自动
     // 选择系统默认语音，兼容性更好、更稳定。
     window.speechSynthesis.speak(u)
   } catch {
     // 静默失败：部分环境/浏览器不支持语音合成
+    onEnd?.()
   }
 }
